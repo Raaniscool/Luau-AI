@@ -27,8 +27,9 @@ it a successful training run.
 Run the actual inspection on the destination machine:
 
 ```powershell
-python -m scripts.preflight_hardware --config configs/qlora_sft.json --print-json
-python -m scripts.preflight_hardware --config configs/qlora_sft.json --require-suitable
+# Run from the repository root, where .\scripts\preflight_hardware.py exists.
+python .\scripts\preflight_hardware.py --config .\configs\qlora_sft.json --print-json
+python .\scripts\preflight_hardware.py --config .\configs\qlora_sft.json --require-suitable
 ```
 
 ## Recommended training method
@@ -105,10 +106,7 @@ After that compatibility work, this helper writes a reviewed template but does n
 `ollama create` for you:
 
 ```powershell
-python -m scripts.prepare_ollama_modelfile `
-  --base C:\models\matching-qwen3-4b.gguf `
-  --adapter C:\models\verified-luau-adapter.gguf `
-  --name luau-ai-qwen3-4b
+python .\scripts\prepare_ollama_modelfile.py --base C:\models\matching-qwen3-4b.gguf --adapter C:\models\verified-luau-adapter.gguf --name luau-ai-qwen3-4b
 ```
 
 `models/` is ignored: do not commit weights, adapter blobs, GGUFs, checkpoints, or Ollama

@@ -3,12 +3,13 @@
 ## Why baseline comes first
 
 A fine-tuned adapter has value only if it improves the capabilities that matter without
-regressing security or general instruction following. Record the untouched base tag before
-training or creating a custom Ollama model:
+regressing security or general instruction following. Run commands from the repository root
+(the directory containing `scripts/`), then record the untouched base tag before training or
+creating a custom Ollama model:
 
 ```powershell
-python -m scripts.run_baseline --model qwen3:4b `
-  --output reports/evaluations/qwen3_4b_baseline.jsonl
+Test-Path .\scripts\run_baseline.py  # Must print True.
+python .\scripts\run_baseline.py --model qwen3:4b --output .\reports\evaluations\qwen3_4b_baseline.jsonl
 ```
 
 `run_baseline.py` sends only task prompts (not hidden rubrics) to Ollama, with deterministic
@@ -39,9 +40,7 @@ loaded by `generate_examples.py` or `train_qlora.py`.
 ## Score a run
 
 ```powershell
-python -m scripts.score_evaluation `
-  --answers reports/evaluations/qwen3_4b_baseline.jsonl `
-  --judge-model qwen3:4b
+python .\scripts\score_evaluation.py --answers .\reports\evaluations\qwen3_4b_baseline.jsonl --judge-model qwen3:4b
 ```
 
 The scorer gives the judge the answer and rubric only after generation is complete. It
@@ -58,17 +57,11 @@ After a successful real adapter export/import, run the same suite without changi
 prompts:
 
 ```powershell
-python -m scripts.run_evaluation `
-  --model luau-ai-qwen3-4b `
-  --output reports/evaluations/luau_ai_candidate.jsonl
+python .\scripts\run_evaluation.py --model luau-ai-qwen3-4b --output .\reports\evaluations\luau_ai_candidate.jsonl
 
-python -m scripts.score_evaluation `
-  --answers reports/evaluations/luau_ai_candidate.jsonl `
-  --judge-model qwen3:4b
+python .\scripts\score_evaluation.py --answers .\reports\evaluations\luau_ai_candidate.jsonl --judge-model qwen3:4b
 
-python -m scripts.compare_reports `
-  --baseline reports/evaluations/qwen3_4b_baseline.scored.jsonl `
-  --candidate reports/evaluations/luau_ai_candidate.scored.jsonl
+python .\scripts\compare_reports.py --baseline .\reports\evaluations\qwen3_4b_baseline.scored.jsonl --candidate .\reports\evaluations\luau_ai_candidate.scored.jsonl
 ```
 
 The comparison report includes per-task score deltas, category means, missing tasks,

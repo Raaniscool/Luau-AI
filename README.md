@@ -47,29 +47,32 @@ legacy_data/       Archive location for compatible previous material
 
 ## Quick start on the Windows machine with Ollama
 
-Open PowerShell in the cloned repository. The data/evaluation stages use only Python's
-standard library; no PyTorch install is needed for them.
+Open PowerShell **in the cloned repository root**, not in your home directory. The
+data/evaluation stages use only Python's standard library; no PyTorch install is needed for
+them. Replace the example path below with the actual location of your clone.
 
 ```powershell
+# This must be the folder that contains README.md, scripts, configs, and evaluation_data.
+Set-Location "C:\path\to\Luau-AI"
+Test-Path .\scripts\run_baseline.py  # Must print True before continuing.
+# If it prints False, you are in the wrong folder or have not checked out the pipeline revision.
+
 # Optional but recommended: isolate Python tooling.
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 # Verify the curated catalog and the held-out split before spending model time.
-python -m scripts.audit_catalog --fail-on-missing
+python .\scripts\audit_catalog.py --fail-on-missing
 
 # Confirm the untouched base model is present.
 ollama list
 ollama run qwen3:4b "Reply with: ready"
 
 # Capture the baseline BEFORE adapter training or creating a specialized tag.
-python -m scripts.run_baseline --model qwen3:4b `
-  --output reports/evaluations/qwen3_4b_baseline.jsonl
+python .\scripts\run_baseline.py --model qwen3:4b --output .\reports\evaluations\qwen3_4b_baseline.jsonl
 
 # Score it (the judge model is recorded; review raw answers too).
-python -m scripts.score_evaluation `
-  --answers reports/evaluations/qwen3_4b_baseline.jsonl `
-  --judge-model qwen3:4b
+python .\scripts\score_evaluation.py --answers .\reports\evaluations\qwen3_4b_baseline.jsonl --judge-model qwen3:4b
 ```
 
 The baseline command records raw answers, settings, timing, model fingerprint when
@@ -82,24 +85,21 @@ Start with a small pilot, inspect its artifacts, then scale deliberately:
 ```powershell
 # Generate eight varied source briefs, validate them, repair revise/fail cases,
 # revalidate repairs, deduplicate, and build only quality-gated records.
-python -m scripts.run_pipeline --model qwen3:4b --limit 8 --variants 1
+python .\scripts\run_pipeline.py --model qwen3:4b --limit 8 --variants 1
 
 # Inspect the local reports and accepted final records before generating all 70 briefs.
-Get-Content training_data\dataset_manifest.json
+Get-Content .\training_data\dataset_manifest.json
 ```
 
 For explicit stage control:
 
 ```powershell
-python -m scripts.generate_examples --model qwen3:4b --limit 8
-python -m scripts.validate_examples --input generated_data/generated_examples.jsonl --model qwen3:4b
-python -m scripts.correct_examples --input validated_data/validated_examples.jsonl --model qwen3:4b
-python -m scripts.validate_examples --input validated_data/corrected_candidates.jsonl `
-  --output validated_data/corrected_validated_examples.jsonl --model qwen3:4b
-python -m scripts.deduplicate_examples `
-  --input validated_data/validated_examples.jsonl `
-  --input validated_data/corrected_validated_examples.jsonl
-python -m scripts.build_datasets --strict
+python .\scripts\generate_examples.py --model qwen3:4b --limit 8
+python .\scripts\validate_examples.py --input .\generated_data\generated_examples.jsonl --model qwen3:4b
+python .\scripts\correct_examples.py --input .\validated_data\validated_examples.jsonl --model qwen3:4b
+python .\scripts\validate_examples.py --input .\validated_data\corrected_candidates.jsonl --output .\validated_data\corrected_validated_examples.jsonl --model qwen3:4b
+python .\scripts\deduplicate_examples.py --input .\validated_data\validated_examples.jsonl --input .\validated_data\corrected_validated_examples.jsonl
+python .\scripts\build_datasets.py --strict
 ```
 
 If no records need correction, the correction artifact is intentionally empty; skip its
@@ -116,8 +116,8 @@ A generated answer is **not** automatically training data. Final construction en
 5. held-out evaluation prompt collision exclusion.
 
 The LLM reviewer is an additional check, not a substitute for expert review. Use
-`python -m scripts.record_human_review` to record named human decisions in an auditable
-way. See [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md).
+`python .\scripts\record_human_review.py` to record named human decisions in an auditable
+way (when run from the repository root). See [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md).
 
 ## Hardware and fine-tuning reality check
 
@@ -127,8 +127,8 @@ evaluation stage above**. It is not a dependable environment for the supplied 4B
 training configuration.
 
 ```powershell
-python -m scripts.preflight_hardware --config configs/qlora_sft.json --require-suitable
-python -m scripts.train_qlora  # writes a plan only; it does not train
+python .\scripts\preflight_hardware.py --config .\configs\qlora_sft.json --require-suitable
+python .\scripts\train_qlora.py  # writes a plan only; it does not train
 ```
 
 Use a suitable CUDA/cloud machine for actual adapter training. The shipped config is
@@ -142,14 +142,9 @@ Do not claim a capability gain just because an adapter trained without error. Ru
 held-out suite, score it, and compare it to the saved baseline:
 
 ```powershell
-python -m scripts.run_evaluation --model your-specialized-ollama-tag `
-  --output reports/evaluations/specialized.jsonl
-python -m scripts.score_evaluation `
-  --answers reports/evaluations/specialized.jsonl `
-  --judge-model qwen3:4b
-python -m scripts.compare_reports `
-  --baseline reports/evaluations/qwen3_4b_baseline.scored.jsonl `
-  --candidate reports/evaluations/specialized.scored.jsonl
+python .\scripts\run_evaluation.py --model your-specialized-ollama-tag --output .\reports\evaluations\specialized.jsonl
+python .\scripts\score_evaluation.py --answers .\reports\evaluations\specialized.jsonl --judge-model qwen3:4b
+python .\scripts\compare_reports.py --baseline .\reports\evaluations\qwen3_4b_baseline.scored.jsonl --candidate .\reports\evaluations\specialized.scored.jsonl
 ```
 
 Read the raw outputs and all critical failures, especially security tasks, before relying
