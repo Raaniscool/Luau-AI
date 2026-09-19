@@ -27,6 +27,7 @@ class EvaluationTests(unittest.TestCase):
         must_not = " ".join(task["must_not"])
         self.assertIn("cannot use RemoteEvent:FireServer", must_not)
         self.assertIn("automatically validates or secures", must_not)
+        self.assertIn("server must call RemoteEvent:FireServer", must_not)
         self.assertIn("baseline_regression_focus", task)
         flags = deterministic_regression_flags(
             task,
@@ -47,6 +48,12 @@ class EvaluationTests(unittest.TestCase):
             "Only the server can call FireServer, and a RemoteEvent automatically validates client input.",
         )
         self.assertEqual(len(variant_flags), 2)
+        baseline_style_flags = deterministic_regression_flags(
+            task,
+            "A RemoteEvent is a secure, server-controlled mechanism. The server must explicitly fire "
+            "RemoteEvent:FireServer, and RemoteEvents only let the server trigger actions.",
+        )
+        self.assertEqual(len(baseline_style_flags), 2)
         corrected_flags = deterministic_regression_flags(
             task,
             "It is incorrect to say clients cannot call RemoteEvent:FireServer. RemoteEvents are not inherently secure.",

@@ -133,6 +133,7 @@ def static_validate(record: dict[str, Any], *, minimum_assistant_characters: int
             (r"\.OnServerEvent\s*\(", "api.remoteevent_subscription", "OnServerEvent is an event; use :Connect(...)"),
             (r"\.OnClientEvent\s*\(", "api.remoteevent_client_subscription", "OnClientEvent is an event; use :Connect(...)"),
             (r"\.OnServerInvoke\s*:\s*Connect", "api.remotefunction_subscription", "OnServerInvoke is assigned a callback, not connected"),
+            (r"\bplayer\s*:\s*IsAuthenticated\s*\(", "api.nonexistent_player_is_authenticated", "Player:IsAuthenticated is not a Roblox Player API; use explicit server-side game eligibility checks"),
             (r"game:GetService\(\s*[\"'](?:PlayerService|ReplicatedStorageService|WorkspaceService)[\"']\s*\)", "api.unknown_service", "Code appears to use a non-existent Roblox service name"),
         ):
             match = re.search(pattern, code, re.IGNORECASE)

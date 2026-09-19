@@ -45,6 +45,16 @@ class QualityTests(unittest.TestCase):
         self.assertIn("network.false_claim_remote_inherently_secure", codes)
 
         record["messages"][2]["content"] = (
+            "A RemoteEvent is a secure, server-controlled mechanism. The server must explicitly fire "
+            "RemoteEvent:FireServer, and RemoteEvents only let the server trigger actions. This intentionally "
+            "long incorrect explanation is a fixture that verifies this baseline-style wording is blocked too."
+        )
+        baseline_style = static_validate(record)
+        baseline_codes = {item["code"] for item in baseline_style["issues"] if item["severity"] == "block"}
+        self.assertIn("network.false_claim_client_cannot_fireserver", baseline_codes)
+        self.assertIn("network.false_claim_remote_inherently_secure", baseline_codes)
+
+        record["messages"][2]["content"] = (
             'The statement "Clients cannot call RemoteEvent:FireServer" is false. RemoteEvents do not automatically '\
             "validate client input; validate requests on the server. This corrected explanation is deliberately "
             "long enough for the static test fixture and describes the safe server-authoritative behavior."
@@ -53,6 +63,12 @@ class QualityTests(unittest.TestCase):
         corrected_codes = {item["code"] for item in corrected["issues"]}
         self.assertNotIn("network.false_claim_client_cannot_fireserver", corrected_codes)
         self.assertNotIn("network.false_claim_remote_inherently_secure", corrected_codes)
+
+    def test_known_hallucinated_player_api_is_blocked(self) -> None:
+        record = reviewed_record()
+        record["messages"][2]["content"] = good_answer() + "\n```luau\nif player:IsAuthenticated() then\n\tprint('ok')\nend\n```"
+        result = static_validate(record)
+        self.assertTrue(any(item["code"] == "api.nonexistent_player_is_authenticated" for item in result["issues"]))
 
     def test_reviewer_policy_downgrades_low_security_acceptance(self) -> None:
         review = parse_review(
