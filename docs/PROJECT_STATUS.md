@@ -7,9 +7,13 @@
 - Project structure and storage rules for raw, generated, validated, training,
   evaluation, model, report, and legacy data.
 - A 70-item project-authored training seed catalog with broad Roblox/Luau coverage.
-- A separate 24-item project-authored held-out evaluation suite with rubrics.
+- A separate 24-item project-authored held-out evaluation suite with rubrics, including explicit
+  regression criteria for the reported RemoteEvent baseline errors.
+- A 12-card source-checked Code Book proof of concept with schema, source policy, audit, and
+  deterministic retrieval; it is not auto-training data.
 - Generation, validation, correction, deduplication, final dataset, baseline,
-  scoring/comparison, hardware preflight, and guarded adapter-training scripts.
+  scoring/comparison, a one-task non-training proof-of-concept runner, hardware preflight,
+  and guarded adapter-training scripts.
 - Unit tests for key quality, split-isolation, deduplication, scoring, and dataset-build
   invariants.
 

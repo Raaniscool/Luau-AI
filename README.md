@@ -38,6 +38,7 @@ generated_data/    Stage 1 local candidate outputs (ignored)
 validated_data/    Review, correction, and dedupe artifacts (ignored)
 training_data/     Quality-gated final/train/development JSONL (ignored)
 evaluation_data/   Held-out prompts and scoring rubrics (tracked; never training input)
+code_book/         Source-attributed Roblox/Luau reference cards (tracked; not auto-training data)
 scripts/           Dependency-light pipeline, evaluation, and training entry points
 models/            Local adapters/checkpoints/export artifacts (ignored)
 configs/           Pipeline and LoRA/QLoRA configuration (tracked)
@@ -64,11 +65,17 @@ py -3 -m venv .venv
 # Verify the curated catalog and the held-out split before spending model time.
 python .\scripts\audit_catalog.py --fail-on-missing
 
-# Confirm the untouched base model is present.
+# Confirm the existing local Ollama registration BEFORE any model-facing pipeline stage.
+# This only runs `ollama list`; it does not download or run a model.
 ollama list
-ollama run qwen3:4b "Reply with: ready"
+python .\scripts\check_ollama.py --model qwen3:4b
 
-# Capture the baseline BEFORE adapter training or creating a specialized tag.
+# Recommended first proof of concept: audits the Code Book, captures only the important
+# RemoteEvent baseline answer, and scores it. It generates no training data and does not train.
+python .\scripts\run_first_poc.py --model qwen3:4b
+
+# After inspecting that POC, capture the full baseline BEFORE adapter training or a custom tag.
+# The runner repeats the local CLI/API availability check before generation.
 python .\scripts\run_baseline.py --model qwen3:4b --output .\reports\evaluations\qwen3_4b_baseline.jsonl
 
 # Score it (the judge model is recorded; review raw answers too).
@@ -77,6 +84,19 @@ python .\scripts\score_evaluation.py --answers .\reports\evaluations\qwen3_4b_ba
 
 The baseline command records raw answers, settings, timing, model fingerprint when
 available, and failures. It does not fabricate an answer if Ollama is unavailable.
+
+### Code Book proof of concept
+
+The Code Book is a source-attributed reference layer for Builder/Reviewer/Fixer work. It is
+not automatically mixed into fine-tuning data. Audit and query it without calling a model:
+
+```powershell
+python .\scripts\audit_code_book.py --strict
+python .\scripts\query_code_book.py --query "secure RemoteEvent shop purchase" --format markdown
+```
+
+See [docs/CODE_BOOK.md](docs/CODE_BOOK.md) for source policy, card lifecycle, and the
+RemoteEvent regression guard derived from the reported baseline weakness.
 
 ### First data pilot
 
@@ -154,7 +174,8 @@ on an aggregate score. Details: [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ```bash
 python -m compileall -q scripts
-python -m scripts.audit_catalog --fail-on-missing
+python .\scripts\audit_catalog.py --fail-on-missing
+python .\scripts\audit_code_book.py --strict
 python -m unittest discover -v
 ```
 

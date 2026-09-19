@@ -20,6 +20,40 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(result["status"], "fail")
         self.assertTrue(any(item["code"] == "security.loadstring" and item["severity"] == "block" for item in result["issues"]))
 
+    def test_known_remoteevent_baseline_hallucinations_are_blocked(self) -> None:
+        record = reviewed_record()
+        record["messages"][2]["content"] = (
+            "RemoteEvents are inherently secure, and clients cannot call RemoteEvent:FireServer. "
+            "This intentionally long incorrect explanation is only a test fixture and has enough characters "
+            "to pass the minimum answer-length check while the factual networking checks reject it."
+        )
+        result = static_validate(record)
+        codes = {item["code"] for item in result["issues"] if item["severity"] == "block"}
+        self.assertIn("network.false_claim_client_cannot_fireserver", codes)
+        self.assertIn("network.false_claim_remote_inherently_secure", codes)
+
+    def test_remoteevent_variant_false_claims_are_blocked_but_quoted_corrections_are_allowed(self) -> None:
+        record = reviewed_record()
+        record["messages"][2]["content"] = (
+            "Only the server can call FireServer, and a RemoteEvent automatically validates client input. "
+            "This intentionally long incorrect explanation is only a test fixture and has enough characters "
+            "to pass the minimum answer-length check while deterministic networking checks reject it."
+        )
+        blocked = static_validate(record)
+        codes = {item["code"] for item in blocked["issues"] if item["severity"] == "block"}
+        self.assertIn("network.false_claim_client_cannot_fireserver", codes)
+        self.assertIn("network.false_claim_remote_inherently_secure", codes)
+
+        record["messages"][2]["content"] = (
+            'The statement "Clients cannot call RemoteEvent:FireServer" is false. RemoteEvents do not automatically '\
+            "validate client input; validate requests on the server. This corrected explanation is deliberately "
+            "long enough for the static test fixture and describes the safe server-authoritative behavior."
+        )
+        corrected = static_validate(record)
+        corrected_codes = {item["code"] for item in corrected["issues"]}
+        self.assertNotIn("network.false_claim_client_cannot_fireserver", corrected_codes)
+        self.assertNotIn("network.false_claim_remote_inherently_secure", corrected_codes)
+
     def test_reviewer_policy_downgrades_low_security_acceptance(self) -> None:
         review = parse_review(
             '{"decision":"accept","scores":{"accuracy":5,"security":2,"requirement_coverage":5,"pedagogy":4},"blocking_issues":[],"required_fixes":[],"strengths":["clear"],"api_claims_to_verify":[],"summary":"x"}',

@@ -3,16 +3,16 @@
   "status": "future_interface_only_not_an_orchestrator",
   "roles": {
     "builder": {
-      "input": ["user_request", "constraints", "prior_feedback"],
-      "output": ["solution", "file_layout", "assumptions", "security_notes", "test_plan"]
+      "input": ["user_request", "constraints", "prior_feedback", "code_book_context"],
+      "output": ["solution", "file_layout", "assumptions", "security_notes", "test_plan", "code_book_card_revisions"]
     },
     "verifier": {
-      "input": ["user_request", "builder_solution"],
-      "output": ["requirement_results", "api_findings", "security_findings", "test_findings", "verdict"]
+      "input": ["user_request", "builder_solution", "code_book_context"],
+      "output": ["requirement_results", "api_findings", "security_findings", "test_findings", "code_book_findings", "verdict"]
     },
     "reviewer": {
-      "input": ["user_request", "builder_solution", "verifier_report"],
-      "output": ["strengths", "weaknesses", "prioritized_feedback", "revision_required"]
+      "input": ["user_request", "builder_solution", "verifier_report", "code_book_context"],
+      "output": ["strengths", "weaknesses", "prioritized_feedback", "code_book_findings", "revision_required"]
     }
   },
   "invariants": [

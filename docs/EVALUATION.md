@@ -9,6 +9,8 @@ creating a custom Ollama model:
 
 ```powershell
 Test-Path .\scripts\run_baseline.py  # Must print True.
+# Verification only: runs `ollama list`; it does not download or run a model.
+python .\scripts\check_ollama.py --model qwen3:4b
 python .\scripts\run_baseline.py --model qwen3:4b --output .\reports\evaluations\qwen3_4b_baseline.jsonl
 ```
 
@@ -20,6 +22,17 @@ timing, and an error record when a task cannot run.
 The first task is exactly:
 
 > Explain what a RemoteEvent is in Roblox and show a secure example.
+
+For an incremental proof before the full 24-task capture, run:
+
+```powershell
+python .\scripts\run_first_poc.py --model qwen3:4b
+```
+
+It first runs `ollama list`, audits the Code Book, captures only this task, and scores it.
+It writes the raw answer and score under `reports/poc/` and refuses to replace an existing
+raw POC answer unless you explicitly add `--overwrite`. It does not generate a training
+corpus or start fine-tuning.
 
 The baseline runner cannot prove a user-created tag was unmodified. Use the downloaded
 `qwen3:4b` tag before any `ollama create` work, and retain the raw output file.
@@ -45,8 +58,11 @@ python .\scripts\score_evaluation.py --answers .\reports\evaluations\qwen3_4b_ba
 
 The scorer gives the judge the answer and rubric only after generation is complete. It
 requires all rubric criteria to be scored, recomputes the total from criterion points, and
-records critical failures separately. It also labels the method honestly:
-**LLM-as-judge is repeatable triage, not ground truth.**
+records critical failures separately. It also runs narrow deterministic regression checks for
+the RemoteEvent baseline task: an answer that says clients cannot call `FireServer` or that
+RemoteEvents are inherently secure receives a release-fail verdict even if the judge misses
+it. It labels the remaining method honestly: **LLM-as-judge is repeatable triage, not ground
+truth.**
 
 For higher confidence, use a different qualified judge model and/or independent human
 review of all security tasks. Do not optimize solely for a single judge score.

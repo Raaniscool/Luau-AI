@@ -19,7 +19,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from scripts.lib.evaluation import score_record_fingerprint, validate_evaluation_tasks
+from scripts.lib.evaluation import deterministic_regression_flags, score_record_fingerprint, validate_evaluation_tasks
 from scripts.lib.io_utils import extract_json_object, read_jsonl, utc_now, write_json_atomic, write_jsonl_atomic
 from scripts.lib.ollama import OllamaClient, OllamaError
 from scripts.lib.prompts import SCORING_SYSTEM, scoring_prompt
@@ -100,6 +100,21 @@ def parse_score(raw: str, task: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def apply_deterministic_regression_guard(
+    task: dict[str, Any], answer: str, score: dict[str, Any], *, regression_flags: list[str] | None = None
+) -> list[str]:
+    """Force a release failure for explicitly known factual baseline regressions."""
+    regression_flags = deterministic_regression_flags(task, answer) if regression_flags is None else regression_flags
+    if regression_flags:
+        score["critical_failures"] = list(
+            dict.fromkeys([*score["critical_failures"], *(f"Deterministic regression: {flag}" for flag in regression_flags)])
+        )
+        # A known factual regression cannot receive a release-pass verdict merely because a
+        # judge model missed it. Preserve criterion points for later analysis.
+        score["verdict"] = "fail"
+    return regression_flags
+
+
 def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
     completed = [record for record in records if record.get("status") == "complete"]
     scores = [float(record["score"]["overall_score"]) for record in completed]
@@ -118,6 +133,10 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
         "category_mean_scores": {key: round(sum(values) / len(values), 2) for key, values in sorted(groups.items())},
         "verdict_counts": dict(sorted(verdicts.items())),
         "critical_failure_count": sum(len(record["score"].get("critical_failures", [])) for record in completed),
+        "deterministic_regression_flag_count": sum(len(record.get("deterministic_regression_flags", [])) for record in records),
+        "deterministic_regression_task_ids": sorted(
+            {str(record.get("task_id")) for record in records if record.get("deterministic_regression_flags")}
+        ),
     }
 
 
@@ -182,6 +201,7 @@ def run(arguments: argparse.Namespace) -> int:
                 }
             )
             continue
+        regression_flags = deterministic_regression_flags(task, answer_record["answer"])
         try:
             response = client.generate(
                 model=arguments.judge_model,
@@ -191,18 +211,30 @@ def run(arguments: argparse.Namespace) -> int:
                 think=False,
             )
             score = parse_score(response.content, task)
+            apply_deterministic_regression_guard(
+                task, answer_record["answer"], score, regression_flags=regression_flags
+            )
             output.append(
                 {
                     **base,
                     "status": "complete",
                     "score": score,
+                    "deterministic_regression_flags": regression_flags,
                     "judge_elapsed_seconds": round(response.elapsed_seconds, 3),
                     "error": None,
                 }
             )
         except (OllamaError, ValueError) as exc:
             print(f"Scoring task {task['id']} failed: {exc}", file=sys.stderr)
-            output.append({**base, "status": "error", "score": None, "error": str(exc)})
+            output.append(
+                {
+                    **base,
+                    "status": "error",
+                    "score": None,
+                    "deterministic_regression_flags": regression_flags,
+                    "error": str(exc),
+                }
+            )
     write_jsonl_atomic(output_path, output)
     report = {
         "stage": "evaluation_scoring",

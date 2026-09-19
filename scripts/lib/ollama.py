@@ -12,7 +12,10 @@ import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
+
+from scripts.lib.ollama_cli import OllamaCliError, ensure_ollama_model
 
 
 class OllamaError(RuntimeError):
@@ -50,13 +53,28 @@ class OllamaClient:
         return names
 
     def assert_model_present(self, model: str) -> None:
+        """Verify the local CLI registration before making an API generation request.
+
+        This intentionally never pulls/downloads a model. For a local default host it first
+        runs `ollama list`, then confirms the same tag through the Ollama API. A remote host
+        cannot reliably use this machine's CLI, so only the API check applies there.
+        """
+        if self._is_local_host():
+            try:
+                ensure_ollama_model(model)
+            except OllamaCliError as exc:
+                raise OllamaUnavailableError(str(exc)) from exc
         names = self.model_names()
         if model not in names:
             available = ", ".join(sorted(names)) or "(none)"
             raise OllamaUnavailableError(
-                f"Ollama is reachable at {self.host}, but model {model!r} is not installed. "
-                f"Available: {available}. Run `ollama pull {model}` or choose --model."
+                f"Ollama is reachable at {self.host}, but model {model!r} is not registered by its API. "
+                f"Available: {available}. Do not download a replacement automatically; confirm the existing tag or choose --model."
             )
+
+    def _is_local_host(self) -> bool:
+        parsed = urlparse(self.host)
+        return parsed.hostname in {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
 
     def show(self, model: str) -> dict[str, Any]:
         return self._request("/api/show", {"name": model})

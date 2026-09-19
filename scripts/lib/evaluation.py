@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from scripts.lib.io_utils import canonical_json, sha256_text, utc_now
@@ -97,6 +98,57 @@ def _response_metadata(raw: dict[str, Any] | None) -> dict[str, Any] | None:
         "eval_duration",
     )
     return {key: raw[key] for key in allowed if key in raw}
+
+
+CLIENT_CANNOT_FIRESERVER_FLAG = "Claims clients cannot initiate a client-to-server RemoteEvent request with FireServer."
+REMOTE_EVENT_INHERENTLY_SECURE_FLAG = "Claims RemoteEvents are inherently or automatically secure."
+
+
+def remoteevent_regression_flags(answer: str) -> list[str]:
+    """Detect the two known RemoteEvent factual errors in arbitrary instructional text."""
+    checks = (
+        (
+            (
+                r"\bclients?\s+(?:cannot|can't|can\s+not|are\s+unable\s+to)\s+(?:call|use|fire|invoke)\s+(?:a\s+)?(?:remoteevent\s*:\s*)?fireserver\b",
+                r"\bclients?\s+(?:cannot|can't|can\s+not|are\s+unable\s+to)\s+(?:initiate|send|make)\s+(?:a\s+)?(?:client[\s-]+to[\s-]+server\s+)?(?:remoteevent\s+)?(?:request|call)(?:\s+(?:with|using|via|by\s+calling)\s+(?:remoteevent\s*:\s*)?fireserver)?\b",
+                r"\b(?:remoteevent\s*:\s*)?fireserver\s+(?:can|may|is)\s+only\s+(?:be\s+)?(?:called|used|invoked)\s+(?:by|from)\s+(?:the\s+)?server\b",
+                r"\bonly\s+(?:the\s+)?server\s+(?:can|may)\s+(?:call|use|invoke)\s+(?:a\s+)?(?:remoteevent\s*:\s*)?fireserver\b",
+            ),
+            CLIENT_CANNOT_FIRESERVER_FLAG,
+        ),
+        (
+            (
+                r"\bremoteevents?\s+(?:are|is)\s+(?:(?:inherently|automatically|by\s+default)\s+)?(?:secure|safe)\b",
+                r"\bremoteevents?\s+(?:automatically|inherently|by\s+default)\s+(?:validate|sanitize|authorize|secure|protect)\b",
+                r"\bremoteevents?\s+(?:itself\s+)?(?:automatically\s+)?(?:validates?|sanitizes?|authorizes?)\s+(?:all\s+)?(?:client\s+)?(?:input|requests?)\b",
+                r"\bremoteevents?\s+(?:make|keep|ensure|guarantee)\s+(?:client\s+)?(?:input|requests?)\s+(?:secure|safe|trusted|validated)\b",
+            ),
+            REMOTE_EVENT_INHERENTLY_SECURE_FLAG,
+        ),
+    )
+    corrective_prefix = r"(?:incorrect|wrong|false|not\s+true|myth|misconception|mistake|avoid|do\s+not\s+say|should\s+not\s+say).{0,24}$"
+    corrective_suffix = r"^\s*(?:[\"'”.)!?]\s*)*(?:is\s+|was\s+)?(?:incorrect|wrong|false|not\s+true|a\s+myth|a\s+misconception)\b"
+    flags: list[str] = []
+    for patterns, message in checks:
+        for pattern in patterns:
+            for match in re.finditer(pattern, answer, re.IGNORECASE):
+                prefix = answer[max(0, match.start() - 64) : match.start()].lower()
+                suffix = answer[match.end() : match.end() + 64].lower()
+                if re.search(corrective_prefix, prefix) or re.search(corrective_suffix, suffix):
+                    continue
+                flags.append(message)
+                break
+            else:
+                continue
+            break
+    return flags
+
+
+def deterministic_regression_flags(task: dict[str, Any], answer: str) -> list[str]:
+    """Apply known factual regression checks only to a task explicitly marked for them."""
+    if not isinstance(task.get("baseline_regression_focus"), dict):
+        return []
+    return remoteevent_regression_flags(answer)
 
 
 def score_record_fingerprint(answer_record: dict[str, Any]) -> str:

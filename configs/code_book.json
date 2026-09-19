@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "cards_file": "code_book/roblox_luau_cards.jsonl",
+  "allowed_statuses_for_default_retrieval": ["source_checked", "human_verified"],
+  "required_source_host_suffixes": ["create.roblox.com"],
+  "training_policy": "manual_curation_only",
+  "default_max_query_results": 5,
+  "notes": [
+    "The Code Book is reference context, not automatic fine-tuning data.",
+    "Source-checked cards still require human/API verification before high-stakes use."
+  ]
+}

@@ -6,6 +6,11 @@ import re
 from copy import deepcopy
 from typing import Any
 
+from scripts.lib.evaluation import (
+    CLIENT_CANNOT_FIRESERVER_FLAG,
+    REMOTE_EVENT_INHERENTLY_SECURE_FLAG,
+    remoteevent_regression_flags,
+)
 from scripts.lib.io_utils import extract_json_object, text_from_message, utc_now
 from scripts.lib.ollama import OllamaClient, OllamaError
 from scripts.lib.prompts import REVIEW_SYSTEM, review_prompt
@@ -75,6 +80,25 @@ def static_validate(record: dict[str, Any], *, minimum_assistant_characters: int
                 continue
             severity = "warning" if _is_review_or_fix_task(record) else "block"
             findings.append(_finding(code_name, message, severity, evidence=match.group(0)))
+
+    # These two factual invariants are explicit held-out baseline regression checks. They
+    # are inspected in prose because a hallucinated explanation is harmful even without a
+    # code block. The shared detector allows a review/fix answer to quote a bad claim in
+    # order to reject it, while direct claims remain a hard block for normal generation.
+    remote_claim_messages = {
+        CLIENT_CANNOT_FIRESERVER_FLAG: (
+            "network.false_claim_client_cannot_fireserver",
+            "Incorrect Roblox behavior: a LocalScript can call RemoteEvent:FireServer to request a client-to-server action",
+        ),
+        REMOTE_EVENT_INHERENTLY_SECURE_FLAG: (
+            "network.false_claim_remote_inherently_secure",
+            "Incorrect security guidance: a RemoteEvent does not automatically validate or authorize client input",
+        ),
+    }
+    for flag in remoteevent_regression_flags(answer):
+        code_name, message = remote_claim_messages[flag]
+        severity = "warning" if _is_review_or_fix_task(record) else "block"
+        findings.append(_finding(code_name, message, severity))
 
     # Networking signatures are inspected primarily in code, so prose explaining an
     # anti-pattern does not itself trigger a false block.

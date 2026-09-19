@@ -26,7 +26,7 @@ shape and invariants.
 
 ### Builder
 
-Input: user request, constraints, prior feedback.
+Input: user request, constraints, prior feedback, and explicitly selected Code Book card IDs/revisions.
 
 Output must include:
 
@@ -35,13 +35,15 @@ Output must include:
 - client/server authority map;
 - security notes for remotes, state, currency, inventory, combat, or purchases;
 - test plan; and
-- a structured summary suitable for a verifier.
+- a structured summary suitable for a verifier; and
+- any Code Book card IDs/revisions consulted, with caveats preserved.
 
-The Builder must not claim an unrun Roblox test passed.
+The Builder must not claim an unrun Roblox test passed or present a Code Book excerpt as a
+substitute for current API verification.
 
 ### Verifier
 
-Input: original request and Builder output.
+Input: original request, Builder output, and any cited Code Book card revisions.
 
 It should check:
 
@@ -59,11 +61,13 @@ It should not write the final solution silently; that belongs to a visible Build
 
 ### Reviewer
 
-Input: original request, candidate, and verifier report.
+Input: original request, candidate, verifier report, and cited Code Book context.
 
-Output: strengths, prioritized weaknesses, missing requirements, regression concerns, and
-an explicit `revision_required` flag. The reviewer focuses on usefulness, maintainability,
-and whether the verifier may have missed a user-facing flaw.
+Output: strengths, prioritized weaknesses, missing requirements, regression concerns,
+Code Book findings with card revisions/caveats, and an explicit `revision_required` flag. The
+reviewer focuses on usefulness, maintainability, and whether the verifier may have missed a
+user-facing flaw. It must treat Code Book material as cited reference context, not proof that
+an API still behaves identically or that game-specific code has been tested.
 
 ## First safe incremental implementation
 

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Luau-AI Code Book Card",
+  "description": "Source-attributed Roblox/Luau knowledge card. Cards are not automatically training data.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "revision",
+    "status",
+    "title",
+    "summary",
+    "domains",
+    "keywords",
+    "claims",
+    "patterns",
+    "pitfalls",
+    "reviewer_checks",
+    "sources",
+    "training_policy",
+    "created_at",
+    "last_source_check"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "id": {"type": "string", "pattern": "^cb-[a-z0-9-]+$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["draft", "source_checked", "human_verified", "deprecated"]},
+    "title": {"type": "string", "minLength": 8},
+    "summary": {"type": "string", "minLength": 40},
+    "domains": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "keywords": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "claim_kind", "source_refs", "caveats"],
+        "properties": {
+          "id": {"type": "string"},
+          "statement": {"type": "string", "minLength": 15},
+          "claim_kind": {"enum": ["official_api", "official_security_guidance", "engineering_pattern"]},
+          "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "caveats": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "patterns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "steps"],
+        "properties": {
+          "id": {"type": "string", "minLength": 3},
+          "name": {"type": "string", "minLength": 5},
+          "steps": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 5}}
+        }
+      }
+    },
+    "pitfalls": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "reviewer_checks": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "publisher", "url", "source_type", "checked_at"],
+        "properties": {
+          "id": {"type": "string"},
+          "publisher": {"type": "string"},
+          "url": {"type": "string", "format": "uri"},
+          "source_type": {"enum": ["official_docs", "official_api_reference", "official_luau_docs"]},
+          "checked_at": {"type": "string"}
+        }
+      }
+    },
+    "training_policy": {"const": "manual_curation_only"},
+    "created_at": {"type": "string"},
+    "last_source_check": {"type": "string"},
+    "human_verification": {"type": ["object", "null"]}
+  }
+}
