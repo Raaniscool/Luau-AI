@@ -1,0 +1,10 @@
+# Install this only on a suitable NVIDIA CUDA/cloud training environment.
+# See docs/HARDWARE_AND_FINETUNING.md before installing or executing training.
+torch>=2.5
+transformers>=4.51,<5
+datasets>=3.0
+accelerate>=1.0
+peft>=0.14
+trl>=0.15
+bitsandbytes>=0.45
+safetensors>=0.4

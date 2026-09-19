@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "base_ollama_model": "qwen3:4b",
+  "generator": {
+    "temperature": 0.35,
+    "top_p": 0.9,
+    "seed": 3407,
+    "num_predict": 2200,
+    "num_ctx": 8192,
+    "variants_per_seed": 1
+  },
+  "reviewer": {
+    "temperature": 0.0,
+    "num_predict": 1200,
+    "minimum_accuracy": 4,
+    "minimum_security": 4,
+    "minimum_requirement_coverage": 4,
+    "minimum_pedagogy": 3
+  },
+  "deduplication": {
+    "near_duplicate_threshold": 0.82,
+    "cross_split_prompt_threshold": 0.93,
+    "shingle_size": 3
+  },
+  "dataset_build": {
+    "validation_ratio": 0.08,
+    "minimum_assistant_characters": 160,
+    "maximum_assistant_characters": 24000
+  }
+}

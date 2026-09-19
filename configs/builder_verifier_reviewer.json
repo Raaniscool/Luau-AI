@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.1",
+  "status": "future_interface_only_not_an_orchestrator",
+  "roles": {
+    "builder": {
+      "input": ["user_request", "constraints", "prior_feedback"],
+      "output": ["solution", "file_layout", "assumptions", "security_notes", "test_plan"]
+    },
+    "verifier": {
+      "input": ["user_request", "builder_solution"],
+      "output": ["requirement_results", "api_findings", "security_findings", "test_findings", "verdict"]
+    },
+    "reviewer": {
+      "input": ["user_request", "builder_solution", "verifier_report"],
+      "output": ["strengths", "weaknesses", "prioritized_feedback", "revision_required"]
+    }
+  },
+  "invariants": [
+    "The server remains authoritative for rewards, currencies, inventory, and combat outcomes.",
+    "Untrusted client input is validated, rate-limited where relevant, and never treated as proof of ownership.",
+    "Each role emits machine-readable JSON alongside human-readable rationale.",
+    "Evaluation tasks and their rubrics remain unavailable to the builder during training."
+  ]
+}

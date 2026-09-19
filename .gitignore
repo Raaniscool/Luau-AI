@@ -1,0 +1,68 @@
+# Python environments and cache
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local environment / credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Models and fine-tuning output: never commit weight/checkpoint blobs by default.
+models/**
+!models/README.md
+!models/.gitkeep
+*.safetensors
+*.gguf
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+adapter_model.*
+optimizer.pt
+trainer_state.json
+
+# Stage outputs are reproducible local artifacts. Keep descriptions and curated inputs,
+# but exclude potentially large generated corpora and reports.
+generated_data/**/*.jsonl
+generated_data/**/*.json
+generated_data/**/*.csv
+!generated_data/README.md
+!generated_data/.gitkeep
+validated_data/**/*.jsonl
+validated_data/**/*.json
+validated_data/**/*.csv
+!validated_data/README.md
+!validated_data/.gitkeep
+training_data/**/*.jsonl
+training_data/**/*.json
+training_data/**/*.csv
+!training_data/README.md
+!training_data/.gitkeep
+reports/**/*.jsonl
+reports/**/*.json
+reports/**/*.csv
+reports/**/*.md
+!reports/README.md
+!reports/.gitkeep
+
+# Temporary conversion and dataset caches
+cache/
+artifacts/
+wandb/
+output/
