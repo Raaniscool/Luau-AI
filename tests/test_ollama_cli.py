@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import unittest
 from unittest.mock import patch
@@ -41,6 +42,33 @@ class OllamaCliTests(unittest.TestCase):
         model_names_mock.side_effect = api_tags
         OllamaClient().assert_model_present("qwen3:4b")
         self.assertEqual(call_order, ["cli", "api"])
+
+    @patch("scripts.lib.ollama.urlopen")
+    def test_generate_aggregates_streamed_chunks_for_slow_local_inference(self, urlopen_mock) -> None:
+        class FakeStream:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def __iter__(self):
+                return iter(
+                    [
+                        b'{"model":"qwen3:4b","response":"secure ","done":false}\n',
+                        b'{"model":"qwen3:4b","response":"answer","done":false}\n',
+                        b'{"model":"qwen3:4b","response":"","done":true,"eval_count":2}\n',
+                    ]
+                )
+
+        urlopen_mock.return_value = FakeStream()
+        response = OllamaClient().generate(model="qwen3:4b", prompt="test", think=False)
+        self.assertEqual(response.content, "secure answer")
+        self.assertEqual(response.raw["eval_count"], 2)
+        request = urlopen_mock.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertTrue(payload["stream"])
+        self.assertFalse(payload["think"])
 
     @patch("scripts.lib.ollama_cli.subprocess.run")
     def test_missing_tag_fails_without_suggesting_automatic_download(self, run_mock) -> None:

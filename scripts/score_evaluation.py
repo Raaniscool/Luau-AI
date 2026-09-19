@@ -36,6 +36,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--temperature", type=float, default=0.0)
     value.add_argument("--num-predict", type=int, default=1600)
     value.add_argument("--num-ctx", type=int, default=8192)
+    value.add_argument("--timeout-seconds", type=int, default=600, help="Per-response/chunk Ollama HTTP timeout")
     value.add_argument("--limit", type=int, default=0)
     value.add_argument("--dry-run", action="store_true")
     return value
@@ -143,6 +144,8 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
 def run(arguments: argparse.Namespace) -> int:
     if arguments.limit < 0:
         raise ValueError("--limit must be zero or positive")
+    if arguments.timeout_seconds < 1:
+        raise ValueError("--timeout-seconds must be at least one second")
     tasks = list(read_jsonl(arguments.evaluation))
     validate_evaluation_tasks(tasks)
     task_by_id = {task["id"]: task for task in tasks}
@@ -166,6 +169,7 @@ def run(arguments: argparse.Namespace) -> int:
                 "created_at": utc_now(),
                 "answers": str(arguments.answers),
                 "judge_model": arguments.judge_model,
+                "request_timeout_seconds": arguments.timeout_seconds,
                 "planned_records": len(answers),
                 "dry_run": True,
             },
@@ -173,7 +177,7 @@ def run(arguments: argparse.Namespace) -> int:
         print(f"Scoring plan written to {report_path}; no judge model was called.")
         return 0
 
-    client = OllamaClient(arguments.host)
+    client = OllamaClient(arguments.host, timeout_seconds=arguments.timeout_seconds)
     client.assert_model_present(arguments.judge_model)
     output: list[dict[str, Any]] = []
     for index, answer_record in enumerate(answers, start=1):
@@ -244,6 +248,7 @@ def run(arguments: argparse.Namespace) -> int:
         "evaluation": str(arguments.evaluation),
         "judge_model": arguments.judge_model,
         "judge_options": options,
+        "request_timeout_seconds": arguments.timeout_seconds,
         "method_note": "LLM-as-judge is a repeatable triage signal; inspect raw answers and critical failures manually.",
         **aggregate(output),
     }
@@ -255,6 +260,9 @@ def run(arguments: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     try:
         return run(parser().parse_args(argv))
+    except KeyboardInterrupt:
+        print("scoring interrupted; no score was fabricated.", file=sys.stderr)
+        return 130
     except (FileNotFoundError, ValueError, OSError, OllamaError) as exc:
         print(f"scoring error: {exc}", file=sys.stderr)
         return 2

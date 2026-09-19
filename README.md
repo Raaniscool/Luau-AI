@@ -72,6 +72,8 @@ python .\scripts\check_ollama.py --model qwen3:4b
 
 # Recommended first proof of concept: audits the Code Book, captures only the important
 # RemoteEvent baseline answer, and scores it. It generates no training data and does not train.
+# It uses streamed local responses plus compact 900/700-token budgets, 4K context, and a
+# 30-minute per-chunk timeout for slow CPU-only systems. Settings are recorded in its report.
 python .\scripts\run_first_poc.py --model qwen3:4b
 
 # After inspecting that POC, capture the full baseline BEFORE adapter training or a custom tag.

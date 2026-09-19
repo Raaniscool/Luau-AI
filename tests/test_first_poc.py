@@ -17,6 +17,9 @@ class FirstPocTests(unittest.TestCase):
             report = json.loads((output_dir / "first_poc_report.json").read_text(encoding="utf-8"))
             self.assertEqual(report["status"], "planned_not_executed")
             self.assertEqual(report["model"], "qwen3:4b")
+            self.assertEqual(report["generation_options"], {"num_predict": 900, "num_ctx": 4096})
+            self.assertEqual(report["judge_options"], {"num_predict": 700, "num_ctx": 4096})
+            self.assertEqual(report["request_timeout_seconds"], 1800)
             self.assertIn("No training data is generated.", report["guarantees"])
 
     def test_poc_rejects_remote_host_that_ollama_list_cannot_attest(self) -> None:

@@ -91,7 +91,9 @@ class OllamaClient:
         payload: dict[str, Any] = {
             "model": model,
             "prompt": prompt,
-            "stream": False,
+            # Streaming keeps a slow CPU-only local generation from waiting for one giant
+            # HTTP response. We still aggregate the chunks before returning to callers.
+            "stream": True,
             "options": options or {},
         }
         if system:
@@ -137,23 +139,28 @@ class OllamaClient:
         self, endpoint: str, payload: dict[str, Any], think: bool | None
     ) -> dict[str, Any]:
         """Retry older Ollama servers that reject the newer optional `think` field."""
+        request = self._stream_request if payload.get("stream") else self._request
         try:
-            return self._request(endpoint, payload)
+            return request(endpoint, payload)
         except OllamaError as exc:
             message = str(exc).lower()
             if think is not None and "think" in payload and ("unknown field" in message or "invalid" in message):
                 legacy_payload = dict(payload)
                 legacy_payload.pop("think", None)
-                return self._request(endpoint, legacy_payload)
+                return request(endpoint, legacy_payload)
             raise
 
-    def _request(self, endpoint: str, payload: dict[str, Any] | None, *, method: str = "POST") -> dict[str, Any]:
+    def _build_request(self, endpoint: str, payload: dict[str, Any] | None, *, method: str = "POST") -> Request:
         url = f"{self.host}{endpoint}"
         data = None if payload is None else json.dumps(payload).encode("utf-8")
         request = Request(url, data=data, method=method)
         request.add_header("Accept", "application/json")
         if data is not None:
             request.add_header("Content-Type", "application/json")
+        return request
+
+    def _request(self, endpoint: str, payload: dict[str, Any] | None, *, method: str = "POST") -> dict[str, Any]:
+        request = self._build_request(endpoint, payload, method=method)
         try:
             with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - local configured endpoint
                 raw = response.read().decode("utf-8")
@@ -172,4 +179,47 @@ class OllamaClient:
             raise OllamaError(f"Ollama returned an unexpected JSON shape for {endpoint}")
         if result.get("error"):
             raise OllamaError(f"Ollama error for {endpoint}: {result['error']}")
+        return result
+
+    def _stream_request(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Aggregate Ollama's JSONL generation stream into the normal response shape.
+
+        A chunked local response prevents a slow CPU-only generation from exceeding a
+        whole-response socket wait. The configured timeout still bounds the wait for each
+        individual stream chunk and initial model-load response.
+        """
+        request = self._build_request(endpoint, payload)
+        chunks: list[str] = []
+        final: dict[str, Any] | None = None
+        try:
+            with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - local configured endpoint
+                for raw_line in response:
+                    if not raw_line.strip():
+                        continue
+                    try:
+                        item = json.loads(raw_line.decode("utf-8"))
+                    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                        preview = raw_line[:500].decode("utf-8", errors="replace")
+                        raise OllamaError(f"Ollama returned invalid JSONL for {endpoint}: {preview!r}") from exc
+                    if not isinstance(item, dict):
+                        raise OllamaError(f"Ollama returned an unexpected streamed JSON shape for {endpoint}")
+                    if item.get("error"):
+                        raise OllamaError(f"Ollama error for {endpoint}: {item['error']}")
+                    piece = item.get("response")
+                    if isinstance(piece, str):
+                        chunks.append(piece)
+                    if item.get("done") is True:
+                        final = item
+        except HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            raise OllamaError(f"Ollama request {endpoint} failed with HTTP {exc.code}: {body[:1000]}") from exc
+        except (URLError, TimeoutError, OSError) as exc:
+            raise OllamaUnavailableError(
+                f"Cannot reach Ollama at {self.host} or receive its next generation chunk. "
+                f"Confirm the local API is available and increase the request timeout if the machine is slow. ({exc})"
+            ) from exc
+        if final is None:
+            raise OllamaError(f"Ollama stream for {endpoint} ended before its final done record")
+        result = dict(final)
+        result["response"] = "".join(chunks)
         return result

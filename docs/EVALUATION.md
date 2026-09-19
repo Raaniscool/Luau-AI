@@ -30,9 +30,11 @@ python .\scripts\run_first_poc.py --model qwen3:4b
 ```
 
 It first runs `ollama list`, audits the Code Book, captures only this task, and scores it.
-It writes the raw answer and score under `reports/poc/` and refuses to replace an existing
-raw POC answer unless you explicitly add `--overwrite`. It does not generate a training
-corpus or start fine-tuning.
+It uses streamed responses so a slow local CPU does not wait for one giant HTTP response,
+with compact 900-token baseline / 700-token judge budgets, a 4K context, and a 30-minute
+per-chunk timeout by default. It writes the raw answer and score under `reports/poc/` and
+refuses to replace an existing raw POC answer unless you explicitly add `--overwrite`. It
+does not generate a training corpus or start fine-tuning.
 
 The baseline runner cannot prove a user-created tag was unmodified. Use the downloaded
 `qwen3:4b` tag before any `ollama create` work, and retain the raw output file.
@@ -59,10 +61,10 @@ python .\scripts\score_evaluation.py --answers .\reports\evaluations\qwen3_4b_ba
 The scorer gives the judge the answer and rubric only after generation is complete. It
 requires all rubric criteria to be scored, recomputes the total from criterion points, and
 records critical failures separately. It also runs narrow deterministic regression checks for
-the RemoteEvent baseline task: an answer that says clients cannot call `FireServer` or that
-RemoteEvents are inherently secure receives a release-fail verdict even if the judge misses
-it. It labels the remaining method honestly: **LLM-as-judge is repeatable triage, not ground
-truth.**
+the RemoteEvent baseline task: an answer that says clients cannot call `FireServer`, that
+the server must call `FireServer`, or that RemoteEvents are inherently/automatically secure
+receives a release-fail verdict even if the judge misses it. It labels the remaining method
+honestly: **LLM-as-judge is repeatable triage, not ground truth.**
 
 For higher confidence, use a different qualified judge model and/or independent human
 review of all security tasks. Do not optimize solely for a single judge score.

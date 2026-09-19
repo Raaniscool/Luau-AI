@@ -40,6 +40,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--top-p", type=float, default=0.9)
     value.add_argument("--num-predict", type=int, default=2200)
     value.add_argument("--num-ctx", type=int, default=8192)
+    value.add_argument("--timeout-seconds", type=int, default=600, help="Per-response/chunk Ollama HTTP timeout")
     value.add_argument("--seed", type=int, default=3407)
     value.add_argument("--dry-run", action="store_true")
     return value
@@ -52,6 +53,8 @@ def timestamp_slug() -> str:
 def run(arguments: argparse.Namespace) -> int:
     if not arguments.model:
         raise ValueError("--model is required (or use run_baseline.py for the qwen3:4b default)")
+    if arguments.timeout_seconds < 1:
+        raise ValueError("--timeout-seconds must be at least one second")
     tasks = list(read_jsonl(arguments.evaluation))
     validate_evaluation_tasks(tasks)
     selected = task_selection(tasks, arguments.task_id, arguments.limit)
@@ -76,6 +79,7 @@ def run(arguments: argparse.Namespace) -> int:
         "model": arguments.model,
         "tasks_selected": [task["id"] for task in selected],
         "generation_options": options,
+        "request_timeout_seconds": arguments.timeout_seconds,
         "output": str(output_path),
         "dry_run": bool(arguments.dry_run),
     }
@@ -84,7 +88,7 @@ def run(arguments: argparse.Namespace) -> int:
         print(f"Evaluation plan written to {report_path}; no model was called.")
         return 0
 
-    client = OllamaClient(arguments.host)
+    client = OllamaClient(arguments.host, timeout_seconds=arguments.timeout_seconds)
     client.assert_model_present(arguments.model)
     try:
         fingerprint = sha256_text(canonical_json(client.show(arguments.model)))[:16]
@@ -148,6 +152,9 @@ def run(arguments: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     try:
         return run(parser().parse_args(argv))
+    except KeyboardInterrupt:
+        print("evaluation interrupted; no result was fabricated.", file=sys.stderr)
+        return 130
     except (FileNotFoundError, ValueError, OSError, OllamaError) as exc:
         print(f"evaluation error: {exc}", file=sys.stderr)
         return 2
