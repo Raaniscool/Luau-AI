@@ -30,7 +30,8 @@ is not evidence that code was executed or works in Roblox Studio.
 Do not label an artifact `dukeotr_dataset_v1` merely because it was generated. That version
 name is reserved for a final, quality-gated, deduplicated corpus with a recorded manifest,
 provenance, and evaluation-isolation evidence. Likewise, no adapter/model can be called
-`dukeotr_v1` without its actual compatible training artifact and held-out evaluation record.
+`dukeotr_v1`, `dukeotr-v1`, or stable public `dukeotr` without its actual compatible training
+artifact, held-out evaluation record, and release approval.
 
 ## Evaluation integrity
 

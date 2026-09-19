@@ -18,9 +18,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from scripts.lib.io_utils import extract_json_object, read_json, read_jsonl, utc_now, write_json_atomic, write_jsonl_atomic
+from scripts.lib.io_utils import extract_json_object, read_json, read_jsonl, sha256_text, utc_now, write_json_atomic, write_jsonl_atomic
 from scripts.lib.ollama import OllamaClient, OllamaError
-from scripts.lib.prompts import CORRECTION_SYSTEM, correction_prompt
+from scripts.lib.prompts import CORRECTION_RESPONSE_SCHEMA, CORRECTION_SYSTEM, correction_prompt
 from scripts.lib.quality import needs_correction
 from scripts.lib.schema import clone_for_correction
 
@@ -81,6 +81,7 @@ def run(arguments: argparse.Namespace) -> int:
     failures: list[dict[str, Any]] = []
     for index, record in enumerate(selected, start=1):
         print(f"[{index}/{len(selected)}] correcting {record.get('record_id')}", flush=True)
+        response = None
         try:
             response = client.generate(
                 model=model,
@@ -88,6 +89,7 @@ def run(arguments: argparse.Namespace) -> int:
                 prompt=correction_prompt(record),
                 options=options,
                 think=False,
+                response_format=CORRECTION_RESPONSE_SCHEMA,
             )
             payload = extract_json_object(response.content)
             answer = payload.get("assistant_response")
@@ -114,7 +116,18 @@ def run(arguments: argparse.Namespace) -> int:
                 )
             )
         except (OllamaError, ValueError) as exc:
-            failures.append({"record_id": record.get("record_id"), "error": str(exc)})
+            failure: dict[str, Any] = {"record_id": record.get("record_id"), "error": str(exc)}
+            if response is not None:
+                raw_response = response.content
+                failure.update(
+                    {
+                        "model_response_sha256": sha256_text(raw_response),
+                        "model_response_excerpt": raw_response[:8000],
+                        "model_response_truncated": len(raw_response) > 8000,
+                        "elapsed_seconds": round(response.elapsed_seconds, 3),
+                    }
+                )
+            failures.append(failure)
             print(f"Correction failed: {exc}", file=sys.stderr)
             if not arguments.continue_on_error:
                 break
@@ -128,6 +141,8 @@ def run(arguments: argparse.Namespace) -> int:
             "output": str(arguments.output),
             "model": model,
             "options": options,
+            "response_contract": "ollama_json_schema",
+            "response_schema": CORRECTION_RESPONSE_SCHEMA,
             "selected_records": len(selected),
             "corrected_records": len(corrected),
             "failures": failures,

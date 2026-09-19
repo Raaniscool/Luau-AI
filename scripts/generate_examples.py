@@ -23,7 +23,7 @@ from typing import Any
 
 from scripts.lib.io_utils import canonical_json, extract_json_object, read_json, read_jsonl, sha256_text, utc_now, write_json_atomic, write_jsonl_atomic
 from scripts.lib.ollama import OllamaClient, OllamaError
-from scripts.lib.prompts import GENERATION_SYSTEM, generation_prompt
+from scripts.lib.prompts import GENERATION_RESPONSE_SCHEMA, GENERATION_SYSTEM, generation_prompt
 from scripts.lib.schema import make_generated_record, validate_seed
 
 
@@ -102,6 +102,8 @@ def run(arguments: argparse.Namespace) -> int:
         "selected_seed_count": len(selected),
         "variants_per_seed": variants,
         "planned_records": len(selected) * variants,
+        "response_contract": "ollama_json_schema",
+        "response_schema": GENERATION_RESPONSE_SCHEMA,
         "dry_run": bool(arguments.dry_run),
     }
     if arguments.dry_run:
@@ -130,6 +132,7 @@ def run(arguments: argparse.Namespace) -> int:
     for seed_index, seed in enumerate(selected, start=1):
         for variant in range(1, variants + 1):
             print(f"[{seed_index}/{len(selected)}] {seed['id']} variant {variant}/{variants}", flush=True)
+            response = None
             try:
                 response = client.generate(
                     model=model,
@@ -137,6 +140,7 @@ def run(arguments: argparse.Namespace) -> int:
                     prompt=generation_prompt(seed, variant),
                     options=options,
                     think=False,
+                    response_format=GENERATION_RESPONSE_SCHEMA,
                 )
                 generated = extract_json_object(response.content)
                 assistant_response = generated.get("assistant_response")
@@ -165,7 +169,16 @@ def run(arguments: argparse.Namespace) -> int:
                     )
                 )
             except (OllamaError, ValueError) as exc:
-                failure = {"seed_id": seed["id"], "variant": variant, "error": str(exc)}
+                failure: dict[str, Any] = {"seed_id": seed["id"], "variant": variant, "error": str(exc)}
+                if response is not None:
+                    # Keep a bounded diagnostic excerpt in the ignored local report. It makes
+                    # malformed output debuggable without turning a failure report into a
+                    # second unbounded candidate corpus.
+                    raw_response = response.content
+                    failure["model_response_sha256"] = sha256_text(raw_response)
+                    failure["model_response_excerpt"] = raw_response[:8000]
+                    failure["model_response_truncated"] = len(raw_response) > 8000
+                    failure["elapsed_seconds"] = round(response.elapsed_seconds, 3)
                 failures.append(failure)
                 print(f"Generation failed: {failure['error']}", file=sys.stderr)
                 if not arguments.continue_on_error:

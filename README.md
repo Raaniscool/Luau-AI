@@ -1,8 +1,10 @@
 # DukeOTR — Roblox/Luau specialization pipeline
 
-**DukeOTR** is a staged Roblox-development and Luau specialization built on the existing
-pretrained local Ollama model `qwen3:4b` (matching Hugging Face training base:
-`Qwen/Qwen3-4B`). It does **not** train a language model—or basic English—from scratch.
+**DukeOTR** is the planned public identity of a staged Roblox-development and Luau
+specialization. It is built from the existing pretrained local base model `qwen3:4b`
+(matching Hugging Face training base `Qwen/Qwen3-4B`); it does **not** train a language
+model—or basic English—from scratch. Qwen names are technical provenance, not the public
+identity of a finished specialized assistant.
 
 > The checked-out GitHub repository and local clone directory may retain their historical
 > names for continuity. The permanent project, dataset, adapter, Code Book, and model
@@ -15,17 +17,18 @@ pretrained local Ollama model `qwen3:4b` (matching Hugging Face training base:
 > briefs is a completed training dataset. Generated candidates, accepted records, adapters,
 > and model claims require the documented gates and evidence.
 
-Read the current non-claims in [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) and the
-staged curriculum in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md).
+Read the current non-claims in [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), the
+staged curriculum in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), and the explicit
+[DukeOTR identity/provenance policy](docs/MODEL_IDENTITY.md).
 
 ## DukeOTR sequence
 
 ```text
-Qwen3-4B
+Qwen3-4B technical base
   → verified Roblox/Luau source data + DukeOTR Code Book
   → Builder → Reviewer → Fixer
-  → reviewed data / measured adapter candidate
-  → held-out evaluation → repeat
+  → measured DukeOTR versioned candidate (for example, dukeotr-v1)
+  → held-out evaluation → approved DukeOTR release alias (dukeotr)
 ```
 
 The Builder/Reviewer/Fixer loop is a future interface boundary, not an implemented autonomous
@@ -36,8 +39,8 @@ untouched evaluation boundary.
 ## What is included
 
 - **DukeOTR identity/version contract** in `configs/dukeotr_project.json`:
-  planned `dukeotr_dataset_v1`, `dukeotr_v1`, and `dukeotr-v1-qwen3-4b` names are clearly
-  marked as planned—not created.
+  planned `dukeotr_dataset_v1`, `dukeotr_v1`, versioned candidate `dukeotr-v1`, and
+  stable release alias `dukeotr` are clearly marked as planned—not created.
 - **Phase-1 Luau fundamentals curriculum** in
   `raw_data/dukeotr_phase1_luau_seed_tasks.jsonl`, covering values/types/scope, operators,
   conditionals, numeric/generic/while/repeat-until loops, functions, tables, strings,
@@ -85,16 +88,20 @@ Test-Path .\scripts\audit_dukeotr_curriculum.py  # Must print True.
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# These are static audits; no model is contacted.
+# These are static checks; no model is contacted.
+python -m compileall -q scripts
 python .\scripts\audit_dukeotr_curriculum.py --strict
 python .\scripts\audit_catalog.py --fail-on-missing
 python .\scripts\audit_code_book.py --strict
+python -m unittest discover -v
 ```
 
 ### Required preflight before any model-facing command
 
-The local Ollama installation and the **exact existing** tag must be checked first. Do not
-pull or download another Qwen copy just because no model file appears in this repository.
+The local Ollama installation and the **exact existing base-model** tag must be checked first.
+Do not pull or download another Qwen copy just because no model file appears in this
+repository. At this stage `qwen3:4b` is the verified technical base; it is not a DukeOTR
+release tag.
 
 ```powershell
 ollama list
@@ -132,21 +139,40 @@ python .\scripts\run_baseline.py --model qwen3:4b --output .\reports\evaluations
 
 ## Phase-1 curriculum and small data pilot
 
+`generate_examples.py` uses Ollama JSON Schema mode for its candidate envelope. This prevents
+a normal prose answer from being mistaken for a generated record; a malformed response is
+captured as a bounded diagnostic excerpt in the ignored generation report.
+
 First inspect the planned workflow without running Ollama:
 
 ```powershell
 # Defaults to raw_data/dukeotr_phase1_luau_seed_tasks.jsonl.
-# Use a unique run id; it keeps ignored artifacts separate and will not overwrite prior work.
-python .\scripts\run_pipeline.py --model qwen3:4b --limit 8 --variants 1 --run-id dukeotr_phase1_plan_001 --dry-run
+# Use a new unique run id; it keeps ignored artifacts separate and will not overwrite prior work.
+python .\scripts\run_pipeline.py --model qwen3:4b --limit 1 --variants 1 --run-id dukeotr_phase1_plan_002 --dry-run
 ```
 
-After auditing the plan, passing `ollama list`, and deciding to spend local model time, run a
-small pilot—not thousands of superficial variants:
+After the static audits and base-model preflight pass, use a **fresh one-item** live pilot—not
+thousands of superficial variants. Do not reuse the prior failed `dukeotr_phase1_pilot_001`
+run ID:
 
 ```powershell
-# Candidate generation only; this is still not a final dataset or a fine-tune.
-python .\scripts\run_pipeline.py --model qwen3:4b --limit 8 --variants 1 --run-id dukeotr_phase1_pilot_001
+# Candidate generation and quality gates only; this is not a final dataset or a fine-tune.
+python .\scripts\run_pipeline.py --model qwen3:4b --limit 1 --variants 1 --run-id dukeotr_phase1_pilot_002
 ```
+
+Inspect the ignored artifacts before deciding whether to scale up. The generation report should
+show `generated_records: 1` and an empty `failures` list before later-stage results are trusted:
+
+```powershell
+Get-Content .\generated_data\dukeotr_phase1_pilot_002.generated.generation_report.json -Raw
+Get-Content .\generated_data\dukeotr_phase1_pilot_002.generated.jsonl -Raw
+Get-Content .\validated_data\dukeotr_phase1_pilot_002.validated.jsonl -Raw
+Get-Content .\reports\dukeotr_phase1_pilot_002.pipeline_run.json -Raw
+```
+
+If generation fails again, preserve the fresh run's report and inspect its
+`model_response_excerpt`, `model_response_sha256`, and `error`; do not overwrite the prior
+pilot or bypass the JSON contract.
 
 The pipeline preserves the stage sequence:
 
@@ -157,8 +183,8 @@ The pipeline preserves the stage sequence:
 5. `build_datasets.py` permits only quality-gated, evaluation-isolated rows into final data.
 
 A run ID writes separate ignored paths such as
-`generated_data/dukeotr_phase1_pilot_001.generated.jsonl` and
-`training_data/dukeotr_phase1_pilot_001/`. The orchestrator refuses to overwrite prior paths;
+`generated_data/dukeotr_phase1_pilot_002.generated.jsonl` and
+`training_data/dukeotr_phase1_pilot_002/`. The orchestrator refuses to overwrite prior paths;
 choose a new run ID or archive compatible material in `legacy_data/` before any deliberate
 overwrite.
 
@@ -170,7 +196,7 @@ and isolation gate passes.
 For explicit stage control, pick a unique output prefix deliberately:
 
 ```powershell
-$RunId = "dukeotr_phase1_manual_001"
+$RunId = "dukeotr_phase1_manual_002"
 python .\scripts\generate_examples.py --seeds .\raw_data\dukeotr_phase1_luau_seed_tasks.jsonl --model qwen3:4b --limit 8 --output ".\generated_data\$RunId.generated.jsonl"
 python .\scripts\validate_examples.py --input ".\generated_data\$RunId.generated.jsonl" --output ".\validated_data\$RunId.validated.jsonl" --model qwen3:4b
 python .\scripts\correct_examples.py --input ".\validated_data\$RunId.validated.jsonl" --output ".\validated_data\$RunId.corrected.jsonl" --model qwen3:4b
@@ -221,11 +247,11 @@ checkpoints without an explicit reason and storage plan.
 ## Measuring a real DukeOTR candidate
 
 Only after a versioned final dataset, actual compatible adapter training/import, and a
-candidate Ollama tag exist, evaluate the candidate against the same held-out suite and
-compare raw outputs and critical failures:
+candidate Ollama tag exist, evaluate the **DukeOTR** versioned candidate against the same
+held-out suite and compare raw outputs and critical failures:
 
 ```powershell
-python .\scripts\run_evaluation.py --model dukeotr-v1-qwen3-4b --output .\reports\evaluations\dukeotr_v1.jsonl
+python .\scripts\run_evaluation.py --model dukeotr-v1 --output .\reports\evaluations\dukeotr_v1.jsonl
 python .\scripts\score_evaluation.py --answers .\reports\evaluations\dukeotr_v1.jsonl --judge-model qwen3:4b
 python .\scripts\compare_reports.py `
   --baseline .\reports\evaluations\qwen3_4b_baseline.scored.jsonl `
@@ -233,7 +259,10 @@ python .\scripts\compare_reports.py `
 ```
 
 Do not claim improvement because training exited successfully. Review the raw held-out
-answers, score traces, and security failures before describing any capability change.
+answers, score traces, and security failures before describing any capability change. Only
+then may a human release decision create the stable public alias, after which the intended
+interaction is `ollama run dukeotr`. That command is a future release target, **not an
+available model in this repository today**.
 
 ## Development checks
 

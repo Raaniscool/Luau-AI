@@ -1,4 +1,4 @@
-# Hardware decision and QLoRA/LoRA preparation
+# DukeOTR hardware decision and QLoRA/LoRA preparation
 
 ## Decision for the stated Windows machine
 
@@ -36,7 +36,8 @@ python .\scripts\preflight_hardware.py --config .\configs\qlora_sft.json --requi
 
 Start with **supervised fine-tuning (SFT) using QLoRA**:
 
-- Base: `Qwen/Qwen3-4B` from Hugging Face, not an opaque Ollama quantized blob.
+- Public specialization identity: **DukeOTR**; planned adapter/output version: `dukeotr_v1`.
+- Technical base: `Qwen/Qwen3-4B` from Hugging Face, not an opaque Ollama quantized blob.
 - Base weights: loaded in 4-bit NF4 and frozen.
 - Trainable parameters: LoRA adapters on attention and MLP projections only.
 - Defaults: rank 32, alpha 64, dropout 0.05, 2,048-token maximum, batch size 1, gradient
@@ -106,8 +107,13 @@ After that compatibility work, this helper writes a reviewed template but does n
 `ollama create` for you:
 
 ```powershell
-python .\scripts\prepare_ollama_modelfile.py --base C:\models\matching-qwen3-4b.gguf --adapter C:\models\verified-dukeotr-adapter.gguf --name dukeotr-v1-qwen3-4b
+python .\scripts\prepare_ollama_modelfile.py --base C:\models\matching-qwen3-4b.gguf --adapter C:\models\verified-dukeotr-adapter.gguf --name dukeotr-v1 --release-alias dukeotr
 ```
+
+The helper writes a DukeOTR-branded system prompt plus a provenance manifest, but it still
+does not create either Ollama tag. Evaluate `dukeotr-v1` first. Only after the held-out
+comparison and a human release decision may the stable public `dukeotr` alias be created,
+making `ollama run dukeotr` valid.
 
 `models/` is ignored: do not commit weights, adapter blobs, GGUFs, checkpoints, or Ollama
 files into Git by default.

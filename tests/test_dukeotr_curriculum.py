@@ -21,6 +21,7 @@ class DukeOTRCurriculumTests(unittest.TestCase):
         self.assertEqual(payload["project_name"], "DukeOTR")
         self.assertEqual(payload["status"], "pass")
         self.assertEqual(payload["source_brief_count"], 45)
+        self.assertEqual(payload["identity_errors"], [])
         self.assertEqual(payload["missing_concepts"], [])
         self.assertEqual(payload["missing_instructional_modes"], [])
         self.assertEqual(payload["evaluation_id_collisions"], [])

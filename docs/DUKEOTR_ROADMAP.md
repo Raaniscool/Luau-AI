@@ -1,8 +1,10 @@
 # DukeOTR staged development roadmap
 
-DukeOTR is the Roblox/Luau specialization of the existing pretrained `qwen3:4b` Ollama
-model. It is not a language model trained from scratch. The project name is intentional and
-must remain **DukeOTR** in model, dataset, Code Book, report, and adapter identities.
+DukeOTR is the public identity of a planned Roblox/Luau specialization derived from the
+existing pretrained `qwen3:4b` Ollama base model. It is not a language model trained from
+scratch. The project name is intentional and must remain **DukeOTR** in model, dataset, Code
+Book, report, adapter, and future Ollama-release identities; Qwen names remain technical
+provenance only. See [MODEL_IDENTITY.md](MODEL_IDENTITY.md).
 
 > Repository and clone paths may retain a historical directory name. That path is not the
 > DukeOTR product/model name and is not a reason to rename the checked-out repository root
@@ -10,12 +12,13 @@ must remain **DukeOTR** in model, dataset, Code Book, report, and adapter identi
 
 ## Evidence rules
 
-- A local `qwen3:4b` tag is the starting inference model; do not pull a second copy merely
-  because a repository contains no weights.
+- A local `qwen3:4b` tag is the technical starting inference model; do not pull a second copy
+  merely because a repository contains no weights.
 - The Windows baseline artifact is local/ignored. It must be retained under `reports/` with
   its options and raw answer; Git should not receive model outputs by default.
-- No statement may say `dukeotr_v1` was trained, imported into Ollama, or improved until a
-  compatible adapter artifact and held-out comparison report exist.
+- No statement may say `dukeotr_v1`, `dukeotr-v1`, or `dukeotr` was trained, imported into
+  Ollama, released, or improved until a compatible adapter artifact and held-out comparison
+  report exist.
 - The Code Book is cited reference context, not automatic SFT material.
 
 ## Current repository foundation
@@ -26,8 +29,9 @@ and baseline/evaluation runners. It does **not** yet contain a completed reviewe
 a trained DukeOTR adapter.
 
 The first local Windows POC has captured the one-task raw base-model answer under the user's
-ignored `reports/poc/` directory. Its LLM-as-judge formatting is being hardened separately;
-that does not invalidate the raw baseline capture and does not constitute a DukeOTR model.
+ignored `reports/poc/` directory. Its strict-schema score is a completed base-model baseline,
+not evidence of a DukeOTR model. Candidate generation likewise uses a schema-constrained
+envelope before any quality gate sees a response.
 
 ## Version identities
 
@@ -35,7 +39,8 @@ that does not invalidate the raw baseline capture and does not constitute a Duke
 |---|---|---|
 | Curated first corpus | `dukeotr_dataset_v1` | Curriculum/seed expansion in progress |
 | First adapter | `dukeotr_v1` | Not trained |
-| Candidate Ollama tag | `dukeotr-v1-qwen3-4b` | Not created |
+| Versioned candidate Ollama tag | `dukeotr-v1` | Not created |
+| Stable public Ollama release tag | `dukeotr` | Not created; reserved until release gate |
 
 Use a new manifest and changelog entry whenever one of these identifiers is advanced. A
 version exists only after its referenced artifact is actually created.

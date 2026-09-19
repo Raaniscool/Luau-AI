@@ -2,9 +2,10 @@
 
 ## Design goal
 
-DukeOTR specializes a pretrained Qwen3 model for **Roblox/Luau engineering**, not basic
-language. Each row is an auditable instructional conversation with a source task, not an
-unreviewed dump of model text. Natural English remains expected in every curated answer.
+DukeOTR is the public identity of a specialization derived from a pretrained Qwen3 base for
+**Roblox/Luau engineering**, not basic language. Each row is an auditable instructional
+conversation with a source task, not an unreviewed dump of model text. Natural English
+remains expected in every curated answer; Qwen is preserved as technical provenance.
 
 The repository has two tracked project-authored source-brief catalogs:
 
@@ -62,10 +63,14 @@ snapshot of the findings that led to the repair. It never overwrites the origina
 `raw_data/dukeotr_phase1_luau_seed_tasks.jsonl` and can take either curated catalog through
 `--seeds`. It sends a structured task brief to local Ollama only after the exact local model
 registration preflight, and demands a JSON envelope containing the answer, covered concepts,
-and self-check claims. Prompt variants are scenario-driven and source briefs use different
-task types and wording to avoid repetitive answers.
+and self-check claims. The request uses Ollama JSON Schema mode, not only a prose prompt, so
+small local models are constrained to the required envelope. Prompt variants are
+scenario-driven and source briefs use different task types and wording to avoid repetitive
+answers.
 
-Generation failures are written to a report rather than converted into guessed records.
+Generation failures are written to a report rather than converted into guessed records. If a
+response was received but cannot be parsed, the ignored report retains a bounded
+`model_response_excerpt`, its SHA-256, truncation status, and elapsed time for diagnosis.
 No generated artifact is final data.
 
 ### 2. Validation / review
@@ -119,8 +124,9 @@ recorded and `build_datasets.py` excludes them again as a final defense.
   held-out evaluation suite.
 
 `run_pipeline.py` supplies a per-run directory such as
-`training_data/dukeotr_phase1_pilot_001/` and refuses to reuse it without an explicit
-reviewed overwrite. A final version name such as `dukeotr_dataset_v1` is reserved until its
+`training_data/<new-run-id>/` and refuses to reuse it without an explicit reviewed overwrite.
+The previous failed `dukeotr_phase1_pilot_001` ID must not be reused. A final version name
+such as `dukeotr_dataset_v1` is reserved until its
 manifest and quality evidence actually exist.
 
 It refuses each record lacking any of these: valid schema, static pass, accepting LLM or

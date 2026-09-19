@@ -11,9 +11,9 @@ from scripts.lib.evaluation import (
     REMOTE_EVENT_INHERENTLY_SECURE_FLAG,
     remoteevent_regression_flags,
 )
-from scripts.lib.io_utils import extract_json_object, text_from_message, utc_now
+from scripts.lib.io_utils import extract_json_object, sha256_text, text_from_message, utc_now
 from scripts.lib.ollama import OllamaClient, OllamaError
-from scripts.lib.prompts import REVIEW_SYSTEM, review_prompt
+from scripts.lib.prompts import REVIEW_RESPONSE_SCHEMA, REVIEW_SYSTEM, review_prompt
 from scripts.lib.schema import VALID_REVIEW_DECISIONS, issue, validate_example_structure
 
 _CODE_FENCE_RE = re.compile(r"```(?:luau|lua)?\s*\n(.*?)```", re.IGNORECASE | re.DOTALL)
@@ -238,6 +238,7 @@ def review_record(
 ) -> dict[str, Any]:
     """Ask a separate reviewer pass and retain errors as audit data instead of guessing."""
     static_issues = record.get("quality", {}).get("static", {}).get("issues", [])
+    response = None
     try:
         response = client.generate(
             model=model,
@@ -245,6 +246,7 @@ def review_record(
             prompt=review_prompt(record, static_issues),
             options=options,
             think=False,
+            response_format=REVIEW_RESPONSE_SCHEMA,
         )
         review = parse_review(response.content, minimums=minimums)
         return {
@@ -252,15 +254,31 @@ def review_record(
             "decision": review["decision"],
             "review": review,
             "checked_at": utc_now(),
-            "reviewer": {"kind": "ollama", "model": model, "elapsed_seconds": round(response.elapsed_seconds, 3)},
+            "reviewer": {
+                "kind": "ollama",
+                "model": model,
+                "response_contract": "ollama_json_schema",
+                "elapsed_seconds": round(response.elapsed_seconds, 3),
+            },
         }
     except (OllamaError, ValueError) as exc:
+        reviewer: dict[str, Any] = {"kind": "ollama", "model": model, "response_contract": "ollama_json_schema"}
+        if response is not None:
+            raw_response = response.content
+            reviewer.update(
+                {
+                    "model_response_sha256": sha256_text(raw_response),
+                    "model_response_excerpt": raw_response[:8000],
+                    "model_response_truncated": len(raw_response) > 8000,
+                    "elapsed_seconds": round(response.elapsed_seconds, 3),
+                }
+            )
         return {
             "status": "error",
             "decision": None,
             "review": None,
             "checked_at": utc_now(),
-            "reviewer": {"kind": "ollama", "model": model},
+            "reviewer": reviewer,
             "error": str(exc),
         }
 

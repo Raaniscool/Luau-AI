@@ -22,7 +22,7 @@ from typing import Any
 from scripts.lib.evaluation import model_answer_record, task_selection, validate_evaluation_tasks
 from scripts.lib.io_utils import canonical_json, read_jsonl, sha256_text, slugify, utc_now, write_json_atomic, write_jsonl_atomic
 from scripts.lib.ollama import OllamaClient, OllamaError
-from scripts.lib.prompts import EVALUATION_SYSTEM
+from scripts.lib.prompts import evaluation_system_for_model
 
 
 def parser() -> argparse.ArgumentParser:
@@ -70,6 +70,7 @@ def run(arguments: argparse.Namespace) -> int:
         "num_ctx": arguments.num_ctx,
         "seed": arguments.seed,
     }
+    evaluation_system, prompt_identity = evaluation_system_for_model(arguments.model, run_kind=arguments.run_kind)
     plan = {
         "stage": "held_out_evaluation",
         "created_at": utc_now(),
@@ -77,6 +78,7 @@ def run(arguments: argparse.Namespace) -> int:
         "run_kind": arguments.run_kind,
         "evaluation_file": str(arguments.evaluation),
         "model": arguments.model,
+        "evaluation_prompt_identity": prompt_identity,
         "tasks_selected": [task["id"] for task in selected],
         "generation_options": options,
         "request_timeout_seconds": arguments.timeout_seconds,
@@ -100,7 +102,7 @@ def run(arguments: argparse.Namespace) -> int:
         try:
             response = client.generate(
                 model=arguments.model,
-                system=EVALUATION_SYSTEM,
+                system=evaluation_system,
                 prompt=task["prompt"],
                 options=options,
                 think=False,

@@ -10,6 +10,65 @@ def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True)
 
 
+# These schemas are sent through Ollama's `format` field as well as described in the prompt.
+# The double contract matters for constrained local inference: a prose-only "return JSON"
+# request can otherwise yield a perfectly normal explanation instead of pipeline data.
+GENERATION_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["assistant_response", "coverage", "self_check"],
+    "additionalProperties": False,
+    "properties": {
+        "assistant_response": {"type": "string", "minLength": 1},
+        "coverage": {"type": "array", "items": {"type": "string"}},
+        "self_check": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
+REVIEW_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": [
+        "decision",
+        "scores",
+        "blocking_issues",
+        "required_fixes",
+        "strengths",
+        "api_claims_to_verify",
+        "summary",
+    ],
+    "additionalProperties": False,
+    "properties": {
+        "decision": {"type": "string", "enum": ["accept", "revise", "reject"]},
+        "scores": {
+            "type": "object",
+            "required": ["accuracy", "security", "requirement_coverage", "pedagogy"],
+            "additionalProperties": False,
+            "properties": {
+                "accuracy": {"type": "integer", "minimum": 1, "maximum": 5},
+                "security": {"type": "integer", "minimum": 1, "maximum": 5},
+                "requirement_coverage": {"type": "integer", "minimum": 1, "maximum": 5},
+                "pedagogy": {"type": "integer", "minimum": 1, "maximum": 5},
+            },
+        },
+        "blocking_issues": {"type": "array", "items": {"type": "string"}},
+        "required_fixes": {"type": "array", "items": {"type": "string"}},
+        "strengths": {"type": "array", "items": {"type": "string"}},
+        "api_claims_to_verify": {"type": "array", "items": {"type": "string"}},
+        "summary": {"type": "string"},
+    },
+}
+
+CORRECTION_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["assistant_response", "changes_made", "remaining_assumptions"],
+    "additionalProperties": False,
+    "properties": {
+        "assistant_response": {"type": "string", "minLength": 1},
+        "changes_made": {"type": "array", "items": {"type": "string"}},
+        "remaining_assumptions": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
+
 GENERATION_SYSTEM = """You create high-quality supervised instruction-tuning examples for DukeOTR, a Roblox/Luau
 engineering assistant. You are not chatting with an end user. Produce technically correct,
 self-contained answers grounded in Roblox's client/server model and current Luau idioms.
@@ -173,6 +232,25 @@ EVALUATION_SYSTEM = """You are a Roblox/Luau engineering assistant. Answer the r
 correct, secure, production-minded guidance. Clearly distinguish client and server authority,
 validate untrusted client input, avoid invented APIs, and state placement assumptions where
 needed. Do not expose hidden chain-of-thought and do not claim code was executed."""
+
+DUKEOTR_EVALUATION_SYSTEM = """You are DukeOTR, a Roblox/Luau engineering assistant. Answer the
+request directly with correct, secure, production-minded guidance. Clearly distinguish client
+and server authority, validate untrusted client input, avoid invented APIs, and state placement
+assumptions where needed. Do not expose hidden chain-of-thought and do not claim code was
+executed."""
+
+
+def evaluation_system_for_model(model: str, *, run_kind: str) -> tuple[str, str]:
+    """Brand only a real DukeOTR candidate/release evaluation, never the base baseline.
+
+    The untouched qwen3:4b baseline must retain its original unbranded evaluation contract so
+    a DukeOTR system identity cannot influence the comparison. A future model tagged
+    `dukeotr`, `dukeotr-v1`, or another DukeOTR version receives its public identity prompt.
+    """
+    is_dukeotr_tag = model.strip().casefold().startswith("dukeotr")
+    if run_kind == "candidate" and is_dukeotr_tag:
+        return DUKEOTR_EVALUATION_SYSTEM, "DukeOTR"
+    return EVALUATION_SYSTEM, "unbranded_base_or_external"
 
 
 SCORING_SYSTEM = """You are a strict, independent evaluator of a Roblox/Luau model answer. Treat the

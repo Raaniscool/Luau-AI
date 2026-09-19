@@ -2,9 +2,10 @@
 
 **Updated:** 2026-09-19
 
-DukeOTR is the permanent project/model identity for this Roblox/Luau specialization. It starts
-from the existing pretrained `qwen3:4b` Ollama model and matching `Qwen/Qwen3-4B` training
-base; it is not a language model trained from scratch.
+DukeOTR is the permanent public project/model identity for this Roblox/Luau specialization.
+It is planned to derive from the existing pretrained `qwen3:4b` Ollama model and matching
+`Qwen/Qwen3-4B` training base; it is not a language model trained from scratch. Those Qwen
+names are technical provenance, not the public identity of a completed model.
 
 ## Completed in the tracked repository
 
@@ -21,8 +22,11 @@ base; it is not a language model trained from scratch.
   evaluation/scoring/comparison, hardware-preflight, and guarded adapter-training scripts.
 - A strict per-task JSON Schema path for the LLM evaluation scorer, with unit coverage for
   the observed RemoteEvent scoring-contract failure.
-- Planned identity/version configuration for `dukeotr_dataset_v1`, `dukeotr_v1`, and
-  `dukeotr-v1-qwen3-4b`; all remain explicitly planned.
+- A strict Ollama JSON Schema response contract for candidate generation, plus bounded raw
+  response diagnostics when a model still produces malformed output.
+- Planned identity/version configuration for `dukeotr_dataset_v1`, `dukeotr_v1`, versioned
+  candidate tag `dukeotr-v1`, and stable release alias `dukeotr`; all remain explicitly
+  planned.
 
 ## Local evaluation evidence (not tracked here)
 
@@ -30,11 +34,15 @@ The user captured one raw `qwen3:4b` response to the permanent RemoteEvent task 
 ignored Windows `reports/poc/` directory. That raw baseline must be preserved and never
 regenerated/overwritten just to retry scoring.
 
-Earlier score attempts did not produce a valid rubric score: the JSON-mode judge response
-was syntactically JSON but emitted an answer-shaped `model_answer` object rather than the
-required score object. The repository now contains a stricter schema-constrained retry path,
-but its result on the user's live Ollama server has not yet been observed. A judge failure is
-recorded evidence, not a reason to invent a score.
+The strict-schema scoring retry completed on the user's live Ollama server: the preserved
+base-model record scored **30.0/100** with verdict `fail`, no deterministic flags, and a
+322.316-second judge elapsed time. This is a valid measurement of the untouched base model,
+not evidence of DukeOTR improvement.
+
+The first one-item live generation pilot (`dukeotr_phase1_pilot_001`) then failed before
+validation because the base model response was not parseable JSON. The code now requests the
+same kind of strict JSON Schema response contract used by the working scorer. A fresh pilot
+with a new run ID is still required before calling the generation repair live-verified.
 
 ## Deliberately not completed or claimed
 
@@ -43,7 +51,8 @@ recorded evidence, not a reason to invent a score.
   produced a versioned DukeOTR dataset.
 - No `dukeotr_dataset_v1` artifact exists.
 - No LoRA or QLoRA adapter has been trained.
-- No `dukeotr_v1` adapter or `dukeotr-v1-qwen3-4b` Ollama model has been created.
+- No `dukeotr_v1` adapter, `dukeotr-v1` versioned candidate, or `dukeotr` stable Ollama
+  model has been created.
 - No DukeOTR capability improvement has been measured or claimed.
 - The future Builder → Reviewer → Fixer design is not an implemented autonomous loop.
 

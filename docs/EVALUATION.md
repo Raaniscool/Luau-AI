@@ -36,9 +36,10 @@ with compact 900-token baseline / 700-token judge budgets, a 4K context, and a 3
 per-chunk timeout by default. It writes the raw answer and score under `reports/poc/` and
 refuses to replace an existing raw POC answer unless you explicitly add `--overwrite`. Do
 **not** use `--overwrite` merely to retry a judge score; score the preserved raw answer into
-a new output filename instead. The scorer now supplies a task-specific JSON Schema in
-addition to its prompt contract, but a live retry remains evidence only when it completes.
-The POC does not generate a training corpus or start fine-tuning.
+a new output filename instead. The scorer supplies a task-specific JSON Schema in addition
+to its prompt contract. The strict-schema retry of the preserved POC completed at 30.0/100
+with verdict `fail`; that result measures the untouched base model only. The POC does not
+generate a training corpus or start fine-tuning.
 
 The baseline runner cannot prove a user-created tag was unmodified. Use the downloaded
 `qwen3:4b` tag before any `ollama create` work, and retain the raw output file.
@@ -73,13 +74,14 @@ honestly: **LLM-as-judge is repeatable triage, not ground truth.**
 For higher confidence, use a different qualified judge model and/or independent human
 review of all security tasks. Do not optimize solely for a single judge score.
 
-## Evaluate an actual candidate
+## Evaluate an actual DukeOTR candidate
 
 After a successful real adapter export/import, run the same suite without changing its
-prompts:
+prompts. `dukeotr-v1` is a planned versioned **DukeOTR** candidate tag, not a Qwen-facing
+product name:
 
 ```powershell
-python .\scripts\run_evaluation.py --model dukeotr-v1-qwen3-4b --output .\reports\evaluations\dukeotr_v1_candidate.jsonl
+python .\scripts\run_evaluation.py --model dukeotr-v1 --output .\reports\evaluations\dukeotr_v1_candidate.jsonl
 
 python .\scripts\score_evaluation.py --answers .\reports\evaluations\dukeotr_v1_candidate.jsonl --judge-model qwen3:4b
 
@@ -96,6 +98,10 @@ improvement result. A credible claim should include:
 4. the model tags, base/adapter version, generation settings, dataset manifest hash, and
    judge method; and
 5. ideally a human review sample or a second independent judge.
+
+Only after those gates and a human release decision may the versioned candidate be given the
+stable public DukeOTR alias `dukeotr`, making `ollama run dukeotr` appropriate. Until then,
+that command is a planned release interaction, not an available model.
 
 ## Regression policy suggestion
 

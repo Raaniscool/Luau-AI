@@ -1,8 +1,11 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "project_name": "DukeOTR",
   "planned_dataset_version": "dukeotr_dataset_v1",
   "planned_adapter_version": "dukeotr_v1",
+  "planned_candidate_ollama_tag": "dukeotr-v1",
+  "planned_release_ollama_tag": "dukeotr",
+  "base_model_role": "technical_provenance_and_training_compatibility_not_finished_model_identity",
   "status": "planned_not_trained",
   "method": "lora_sft",
   "base_model": "Qwen/Qwen3-4B",
@@ -21,12 +24,20 @@
     "r": 32,
     "lora_alpha": 64,
     "lora_dropout": 0.05,
-    "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ]
   },
   "minimum_recommended_cuda_vram_gb": 24,
   "notes": [
     "Use only if the full-precision/bfloat16 base fits comfortably on the CUDA device.",
     "QLoRA is the recommended first experiment for DukeOTR.",
-    "The presence of this configuration does not mean dukeotr_v1 has been trained."
+    "The presence of this configuration does not mean dukeotr_v1, dukeotr-v1, or dukeotr has been trained or created."
   ]
 }

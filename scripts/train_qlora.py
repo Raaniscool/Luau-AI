@@ -30,7 +30,7 @@ from scripts.preflight_hardware import assess_hardware
 
 
 def parser() -> argparse.ArgumentParser:
-    value = argparse.ArgumentParser(description="Plan or run Qwen3-4B LoRA/QLoRA SFT on suitable CUDA hardware")
+    value = argparse.ArgumentParser(description="Plan or run DukeOTR LoRA/QLoRA SFT on suitable CUDA hardware (Qwen3-4B base)")
     value.add_argument("--config", default="configs/qlora_sft.json")
     value.add_argument("--execute", action="store_true", help="Actually begin training; otherwise write a plan only")
     value.add_argument("--force-unsafe-hardware", action="store_true", help="Bypass CUDA/VRAM guard (not recommended)")
@@ -273,6 +273,9 @@ def execute_training(config: dict[str, Any], arguments: argparse.Namespace, repo
         "completed_at": utc_now(),
         "status": "completed",
         "method": method,
+        "public_model_identity": config.get("project_name", "DukeOTR"),
+        "planned_candidate_ollama_tag": config.get("planned_candidate_ollama_tag"),
+        "planned_release_ollama_tag": config.get("planned_release_ollama_tag"),
         "base_model": config["base_model"],
         "base_model_revision_requested": config.get("base_model_revision"),
         "base_model_revision_resolved": resolved_base_revision,

@@ -167,7 +167,10 @@ def audit(
     project_name = project_config.get("project_name")
     base_model = project_config.get("starting_ollama_model")
     planned_dataset = project_config.get("dataset_identity", {}).get("planned_first_dataset_version")
-    planned_model = project_config.get("model_identity", {}).get("planned_first_adapter_version")
+    model_identity = project_config.get("model_identity", {})
+    planned_model = model_identity.get("planned_first_adapter_version")
+    planned_candidate_tag = model_identity.get("planned_versioned_ollama_tag")
+    planned_release_tag = model_identity.get("planned_release_ollama_tag")
     identity_errors: list[str] = []
     if project_name != "DukeOTR":
         identity_errors.append("project_name must be DukeOTR")
@@ -177,6 +180,10 @@ def audit(
         identity_errors.append("planned dataset version must be dukeotr_dataset_v1")
     if planned_model != "dukeotr_v1":
         identity_errors.append("planned adapter version must be dukeotr_v1")
+    if planned_candidate_tag != "dukeotr-v1":
+        identity_errors.append("planned versioned Ollama tag must be dukeotr-v1")
+    if planned_release_tag != "dukeotr":
+        identity_errors.append("planned release Ollama tag must be dukeotr")
 
     failed = bool(
         invalid_records

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "project": {
     "name": "DukeOTR",
     "project_config": "configs/dukeotr_project.json",
@@ -7,16 +7,20 @@
     "active_seed_catalog": "raw_data/dukeotr_phase1_luau_seed_tasks.jsonl",
     "dataset_version_target": "dukeotr_dataset_v1",
     "model_version_target": "dukeotr_v1",
+    "planned_candidate_ollama_tag": "dukeotr-v1",
+    "planned_release_ollama_tag": "dukeotr",
     "status": "curriculum_only_not_trained"
   },
   "base_ollama_model": "qwen3:4b",
+  "base_ollama_model_role": "technical_generation_and_baseline_provenance_only_not_the_finished_dukeotr_identity",
   "generator": {
     "temperature": 0.35,
     "top_p": 0.9,
     "seed": 3407,
     "num_predict": 2200,
     "num_ctx": 8192,
-    "variants_per_seed": 1
+    "variants_per_seed": 1,
+    "response_contract": "ollama_json_schema"
   },
   "reviewer": {
     "temperature": 0.0,

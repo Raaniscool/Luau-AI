@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dukeotr-pipeline"
 version = "0.1.0"
-description = "Auditable Roblox/Luau specialization data and evaluation pipeline for Qwen3"
+description = "Auditable DukeOTR Roblox/Luau specialization data and evaluation pipeline (Qwen3-4B derived)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

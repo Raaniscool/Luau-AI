@@ -13,10 +13,12 @@ future compatible legacy material belongs in `legacy_data/` with provenance.
 
 ## Scope and non-goals
 
-DukeOTR specializes the existing pretrained `qwen3:4b` / `Qwen/Qwen3-4B` model. It does not
-train English or a language model from scratch. The current implementation target is a clean,
-staged curriculum/data/evaluation foundation—not a premature autonomous Builder/Reviewer/Fixer
-system and not a claimed fine-tune.
+DukeOTR is the public identity of a specialization derived from the existing pretrained
+`qwen3:4b` / `Qwen/Qwen3-4B` base. It does not train English or a language model from scratch.
+The Qwen references are required technical provenance, not the finished assistant's public
+name. The current implementation target is a clean, staged curriculum/data/evaluation
+foundation—not a premature autonomous Builder/Reviewer/Fixer system and not a claimed
+fine-tune.
 
 ## Staged deliverables
 
@@ -25,8 +27,9 @@ system and not a claimed fine-tune.
 - Preserve the original local base-model response and options as an evaluation artifact.
 - Keep `evaluation_data/` prompts/rubrics, base answers, candidate answers, and score reports
   permanently out of generation and SFT inputs.
-- Retry the captured RemoteEvent score only against the preserved raw answer, using a new
-  output filename and the strict schema scorer.
+- Score the captured RemoteEvent answer only against the preserved raw answer, using a new
+  output filename and the strict-schema scorer; the latest strict retry is a recorded
+  30.0/100 base-model result, not a training result.
 - Capture remaining base-model tasks only after the one-task judge path is reliable.
 
 **Exit evidence:** recorded raw answers/options; no fabricated score when an evaluator fails.
@@ -41,8 +44,10 @@ system and not a claimed fine-tune.
 - Require varied modes: Q&A, natural-language-to-code, explanation, diagnosis/fix,
   requirements implementation, review, output prediction, refactoring, and trade-off
   discussion across learner levels.
-- Run small pilot generations only after exact local `ollama list` preflight; inspect failures
-  and reviews before expanding anything.
+- Run small pilot generations only after exact local `ollama list` preflight; generation uses
+  Ollama JSON Schema mode for the response envelope, and malformed output is retained as a
+  bounded diagnostic excerpt in the ignored report. Inspect failures and reviews before
+  expanding anything.
 
 **Exit evidence:** source audit passes; candidates have passed validation/review/correction and
 dedupe; final records remain isolated from held-out evaluation.
@@ -81,8 +86,9 @@ synthetic prompts.
 - Run LoRA/QLoRA only on suitable CUDA/cloud hardware with the matching Hugging Face base.
 - Record exact base revision, config, dataset manifest/hash, adapter output, training report,
   and held-out result before calling an artifact `dukeotr_v1`.
-- Validate import compatibility before creating the planned Ollama tag
-  `dukeotr-v1-qwen3-4b`; never commit model binaries by default.
+- Validate import compatibility before creating the planned versioned DukeOTR Ollama tag
+  `dukeotr-v1`; only after held-out evaluation and human release approval may it receive the
+  stable public alias `dukeotr`. Never commit model binaries by default.
 
 ### 6. Future Builder → Reviewer → Fixer
 
