@@ -9,7 +9,7 @@ from unittest.mock import patch
 from scripts.lib.evaluation import deterministic_regression_flags
 from scripts.lib.io_utils import read_jsonl
 from scripts.lib.ollama import OllamaResponse
-from scripts.score_evaluation import apply_deterministic_regression_guard, main as score_main, parse_score
+from scripts.score_evaluation import apply_deterministic_regression_guard, main as score_main, parse_score, scoring_response_schema
 
 
 class EvaluationTests(unittest.TestCase):
@@ -53,7 +53,9 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(score_record["status"], "error")
         self.assertEqual(score_record["judge_response"], "judge explanation without JSON")
         self.assertEqual(len(score_record["deterministic_regression_flags"]), 2)
-        self.assertEqual(generate_mock.call_args.kwargs["response_format"], "json")
+        response_schema = generate_mock.call_args.kwargs["response_format"]
+        self.assertEqual(response_schema, scoring_response_schema(task))
+        self.assertEqual(response_schema["properties"]["criterion_scores"]["items"]["properties"]["id"]["enum"], [item["id"] for item in task["rubric"]])
         preflight_mock.assert_called_once_with("qwen3:4b")
 
     def test_remoteevent_baseline_task_rejects_known_factual_errors(self) -> None:

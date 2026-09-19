@@ -42,6 +42,46 @@ def parser() -> argparse.ArgumentParser:
     return value
 
 
+def scoring_response_schema(task: dict[str, Any]) -> dict[str, Any]:
+    """Return the narrow JSON contract supplied to Ollama for a rubric score."""
+    criterion_ids = [item["id"] for item in task["rubric"]]
+    return {
+        "type": "object",
+        "required": [
+            "overall_score",
+            "criterion_scores",
+            "critical_failures",
+            "missing_requirements",
+            "strengths",
+            "verdict",
+        ],
+        "additionalProperties": False,
+        "properties": {
+            "overall_score": {"type": "number", "minimum": 0, "maximum": 100},
+            "criterion_scores": {
+                "type": "array",
+                "minItems": len(criterion_ids),
+                "maxItems": len(criterion_ids),
+                "items": {
+                    "type": "object",
+                    "required": ["id", "points", "max_points", "evidence"],
+                    "additionalProperties": False,
+                    "properties": {
+                        "id": {"type": "string", "enum": criterion_ids},
+                        "points": {"type": "number", "minimum": 0},
+                        "max_points": {"type": "number", "minimum": 0},
+                        "evidence": {"type": "string"},
+                    },
+                },
+            },
+            "critical_failures": {"type": "array", "items": {"type": "string"}},
+            "missing_requirements": {"type": "array", "items": {"type": "string"}},
+            "strengths": {"type": "array", "items": {"type": "string"}},
+            "verdict": {"type": "string", "enum": ["pass", "borderline", "fail"]},
+        },
+    }
+
+
 def parse_score(raw: str, task: dict[str, Any]) -> dict[str, Any]:
     value = extract_json_object(raw)
     criterion_map = {item["id"]: item for item in task["rubric"]}
@@ -193,7 +233,7 @@ def run(arguments: argparse.Namespace) -> int:
             "task_category": task.get("category"),
             "task_difficulty": task.get("difficulty"),
             "evaluated_model": answer_record.get("model"),
-            "judge": {"kind": "ollama_llm_as_judge", "model": arguments.judge_model, "options": options, "response_format": "json"},
+            "judge": {"kind": "ollama_llm_as_judge", "model": arguments.judge_model, "options": options, "response_format": "json_schema"},
         }
         if answer_record.get("status") != "complete" or not isinstance(answer_record.get("answer"), str):
             output.append(
@@ -214,7 +254,7 @@ def run(arguments: argparse.Namespace) -> int:
                 prompt=scoring_prompt(task, answer_record["answer"]),
                 options=options,
                 think=False,
-                response_format="json",
+                response_format=scoring_response_schema(task),
             )
             score = parse_score(response.content, task)
             apply_deterministic_regression_guard(
