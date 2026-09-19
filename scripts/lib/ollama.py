@@ -87,6 +87,7 @@ class OllamaClient:
         system: str | None = None,
         options: dict[str, Any] | None = None,
         think: bool | None = False,
+        response_format: str | dict[str, Any] | None = None,
     ) -> OllamaResponse:
         payload: dict[str, Any] = {
             "model": model,
@@ -102,6 +103,8 @@ class OllamaClient:
         # ignore unknown JSON fields. It prevents internal reasoning markup in datasets.
         if think is not None:
             payload["think"] = think
+        if response_format is not None:
+            payload["format"] = response_format
         started = time.perf_counter()
         result = self._request_with_think_fallback("/api/generate", payload, think)
         elapsed = time.perf_counter() - started
@@ -138,17 +141,23 @@ class OllamaClient:
     def _request_with_think_fallback(
         self, endpoint: str, payload: dict[str, Any], think: bool | None
     ) -> dict[str, Any]:
-        """Retry older Ollama servers that reject the newer optional `think` field."""
+        """Retry older Ollama servers that reject optional thinking/JSON-format fields."""
         request = self._stream_request if payload.get("stream") else self._request
-        try:
-            return request(endpoint, payload)
-        except OllamaError as exc:
-            message = str(exc).lower()
-            if think is not None and "think" in payload and ("unknown field" in message or "invalid" in message):
-                legacy_payload = dict(payload)
-                legacy_payload.pop("think", None)
-                return request(endpoint, legacy_payload)
-            raise
+        retry_payload = dict(payload)
+        while True:
+            try:
+                return request(endpoint, retry_payload)
+            except OllamaError as exc:
+                message = str(exc).lower()
+                if "unknown field" not in message and "invalid" not in message:
+                    raise
+                if think is not None and "think" in retry_payload:
+                    retry_payload.pop("think")
+                    continue
+                if "format" in retry_payload:
+                    retry_payload.pop("format")
+                    continue
+                raise
 
     def _build_request(self, endpoint: str, payload: dict[str, Any] | None, *, method: str = "POST") -> Request:
         url = f"{self.host}{endpoint}"

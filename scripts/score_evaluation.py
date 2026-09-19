@@ -193,7 +193,7 @@ def run(arguments: argparse.Namespace) -> int:
             "task_category": task.get("category"),
             "task_difficulty": task.get("difficulty"),
             "evaluated_model": answer_record.get("model"),
-            "judge": {"kind": "ollama_llm_as_judge", "model": arguments.judge_model, "options": options},
+            "judge": {"kind": "ollama_llm_as_judge", "model": arguments.judge_model, "options": options, "response_format": "json"},
         }
         if answer_record.get("status") != "complete" or not isinstance(answer_record.get("answer"), str):
             output.append(
@@ -206,6 +206,7 @@ def run(arguments: argparse.Namespace) -> int:
             )
             continue
         regression_flags = deterministic_regression_flags(task, answer_record["answer"])
+        response = None
         try:
             response = client.generate(
                 model=arguments.judge_model,
@@ -213,6 +214,7 @@ def run(arguments: argparse.Namespace) -> int:
                 prompt=scoring_prompt(task, answer_record["answer"]),
                 options=options,
                 think=False,
+                response_format="json",
             )
             score = parse_score(response.content, task)
             apply_deterministic_regression_guard(
@@ -230,15 +232,19 @@ def run(arguments: argparse.Namespace) -> int:
             )
         except (OllamaError, ValueError) as exc:
             print(f"Scoring task {task['id']} failed: {exc}", file=sys.stderr)
-            output.append(
-                {
-                    **base,
-                    "status": "error",
-                    "score": None,
-                    "deterministic_regression_flags": regression_flags,
-                    "error": str(exc),
-                }
-            )
+            error_record: dict[str, Any] = {
+                **base,
+                "status": "error",
+                "score": None,
+                "deterministic_regression_flags": regression_flags,
+                "error": str(exc),
+            }
+            if response is not None:
+                # Preserve an invalid judge response locally so it can be diagnosed rather
+                # than discarding the evidence that caused a parse failure.
+                error_record["judge_response"] = response.content
+                error_record["judge_elapsed_seconds"] = round(response.elapsed_seconds, 3)
+            output.append(error_record)
     write_jsonl_atomic(output_path, output)
     report = {
         "stage": "evaluation_scoring",

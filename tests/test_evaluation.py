@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from scripts.lib.evaluation import deterministic_regression_flags
 from scripts.lib.io_utils import read_jsonl
-from scripts.score_evaluation import apply_deterministic_regression_guard, parse_score
+from scripts.lib.ollama import OllamaResponse
+from scripts.score_evaluation import apply_deterministic_regression_guard, main as score_main, parse_score
 
 
 class EvaluationTests(unittest.TestCase):
@@ -21,6 +26,35 @@ class EvaluationTests(unittest.TestCase):
         )
         self.assertEqual(parsed["overall_score"], 80.0)
         self.assertEqual(parsed["reported_overall_score"], 99.0)
+
+    @patch("scripts.score_evaluation.OllamaClient.generate")
+    @patch("scripts.score_evaluation.OllamaClient.assert_model_present")
+    def test_score_requests_json_mode_and_preserves_an_unparseable_judge_response(self, preflight_mock, generate_mock) -> None:
+        generate_mock.return_value = OllamaResponse(content="judge explanation without JSON", raw={}, elapsed_seconds=0.25)
+        task = next(item for item in read_jsonl("evaluation_data/roblox_luau_eval.jsonl") if item["id"] == "eval-remoteevent-secure-001")
+        answer_record = {
+            "schema_version": "1.0",
+            "run_id": "test-run",
+            "run_kind": "baseline",
+            "task_id": task["id"],
+            "model": "qwen3:4b",
+            "generation_options": {},
+            "status": "complete",
+            "answer": "RemoteEvents are inherently secure, and clients cannot call RemoteEvent:FireServer.",
+            "error": None,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            answers = Path(directory) / "answers.jsonl"
+            output = Path(directory) / "scores.jsonl"
+            answers.write_text(json.dumps(answer_record) + "\n", encoding="utf-8")
+            code = score_main(["--answers", str(answers), "--output", str(output)])
+            self.assertEqual(code, 2)
+            score_record = next(read_jsonl(output))
+        self.assertEqual(score_record["status"], "error")
+        self.assertEqual(score_record["judge_response"], "judge explanation without JSON")
+        self.assertEqual(len(score_record["deterministic_regression_flags"]), 2)
+        self.assertEqual(generate_mock.call_args.kwargs["response_format"], "json")
+        preflight_mock.assert_called_once_with("qwen3:4b")
 
     def test_remoteevent_baseline_task_rejects_known_factual_errors(self) -> None:
         task = next(item for item in read_jsonl("evaluation_data/roblox_luau_eval.jsonl") if item["id"] == "eval-remoteevent-secure-001")

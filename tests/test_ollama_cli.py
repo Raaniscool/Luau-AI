@@ -62,13 +62,14 @@ class OllamaCliTests(unittest.TestCase):
                 )
 
         urlopen_mock.return_value = FakeStream()
-        response = OllamaClient().generate(model="qwen3:4b", prompt="test", think=False)
+        response = OllamaClient().generate(model="qwen3:4b", prompt="test", think=False, response_format="json")
         self.assertEqual(response.content, "secure answer")
         self.assertEqual(response.raw["eval_count"], 2)
         request = urlopen_mock.call_args.args[0]
         payload = json.loads(request.data.decode("utf-8"))
         self.assertTrue(payload["stream"])
         self.assertFalse(payload["think"])
+        self.assertEqual(payload["format"], "json")
 
     @patch("scripts.lib.ollama_cli.subprocess.run")
     def test_missing_tag_fails_without_suggesting_automatic_download(self, run_mock) -> None:
