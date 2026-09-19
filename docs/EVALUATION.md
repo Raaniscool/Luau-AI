@@ -1,4 +1,4 @@
-# Baseline, evaluation, scoring, and comparison
+# DukeOTR baseline, evaluation, scoring, and comparison
 
 ## Why baseline comes first
 
@@ -23,7 +23,8 @@ The first task is exactly:
 
 > Explain what a RemoteEvent is in Roblox and show a secure example.
 
-For an incremental proof before the full 24-task capture, run:
+For an incremental proof before the full 24-task capture, run this only **when no raw POC
+answer has been captured yet**:
 
 ```powershell
 python .\scripts\run_first_poc.py --model qwen3:4b
@@ -33,8 +34,11 @@ It first runs `ollama list`, audits the Code Book, captures only this task, and 
 It uses streamed responses so a slow local CPU does not wait for one giant HTTP response,
 with compact 900-token baseline / 700-token judge budgets, a 4K context, and a 30-minute
 per-chunk timeout by default. It writes the raw answer and score under `reports/poc/` and
-refuses to replace an existing raw POC answer unless you explicitly add `--overwrite`. It
-does not generate a training corpus or start fine-tuning.
+refuses to replace an existing raw POC answer unless you explicitly add `--overwrite`. Do
+**not** use `--overwrite` merely to retry a judge score; score the preserved raw answer into
+a new output filename instead. The scorer now supplies a task-specific JSON Schema in
+addition to its prompt contract, but a live retry remains evidence only when it completes.
+The POC does not generate a training corpus or start fine-tuning.
 
 The baseline runner cannot prove a user-created tag was unmodified. Use the downloaded
 `qwen3:4b` tag before any `ollama create` work, and retain the raw output file.
@@ -47,7 +51,7 @@ The baseline runner cannot prove a user-created tag was unmodified. Use the down
 - client/server combat, tools, UI inputs, leaderstats, rounds, and matchmaking;
 - DataStore failure safety, gamepasses, developer product receipts, and architecture;
 - Luau tables, modules/OOP cleanup, NPC pathfinding, debugging, and performance; and
-- advanced streaming and future builder/verifier design.
+- advanced streaming and future Builder/Reviewer/Fixer design.
 
 It is a tracked, project-authored benchmark. Its prompts/rubrics are intentionally never
 loaded by `generate_examples.py` or `train_qlora.py`.
@@ -75,11 +79,11 @@ After a successful real adapter export/import, run the same suite without changi
 prompts:
 
 ```powershell
-python .\scripts\run_evaluation.py --model luau-ai-qwen3-4b --output .\reports\evaluations\luau_ai_candidate.jsonl
+python .\scripts\run_evaluation.py --model dukeotr-v1-qwen3-4b --output .\reports\evaluations\dukeotr_v1_candidate.jsonl
 
-python .\scripts\score_evaluation.py --answers .\reports\evaluations\luau_ai_candidate.jsonl --judge-model qwen3:4b
+python .\scripts\score_evaluation.py --answers .\reports\evaluations\dukeotr_v1_candidate.jsonl --judge-model qwen3:4b
 
-python .\scripts\compare_reports.py --baseline .\reports\evaluations\qwen3_4b_baseline.scored.jsonl --candidate .\reports\evaluations\luau_ai_candidate.scored.jsonl
+python .\scripts\compare_reports.py --baseline .\reports\evaluations\qwen3_4b_baseline.scored.jsonl --candidate .\reports\evaluations\dukeotr_v1_candidate.scored.jsonl
 ```
 
 The comparison report includes per-task score deltas, category means, missing tasks,

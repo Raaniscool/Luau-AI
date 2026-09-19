@@ -15,6 +15,10 @@ Starter sources used by the proof of concept:
 - [Security and cheat mitigation tactics](https://create.roblox.com/docs/scripting/security/security-tactics)
 - [Securing the client-server boundary](https://create.roblox.com/docs/scripting/security/client-server-boundary)
 - [Luau type checking](https://create.roblox.com/docs/luau/type-checking)
+- [Official Luau syntax reference](https://luau.org/syntax/)
+- [Official Luau standard library reference](https://luau.org/library/)
+- [Official Luau type-system reference](https://luau.org/types/)
+- [Roblox events and connections](https://create.roblox.com/docs/scripting/events)
 - [Implement player data and purchasing systems](https://create.roblox.com/docs/scripting/data/player-data-purchasing)
 - [Developer products](https://create.roblox.com/docs/production/monetization/developer-products)
 

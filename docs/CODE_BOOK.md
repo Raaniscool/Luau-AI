@@ -10,11 +10,12 @@ are especially important for Roblox/Luau reliability. It is intentionally separa
 - **model output** — a generated answer is not a source; and
 - **live Studio testing** — a source citation does not prove a game's specific code works.
 
-The proof of concept stores 12 source-checked cards in
+The current source-checked foundation stores 15 cards in
 `code_book/roblox_luau_cards.jsonl`. The cards cover:
 
 - RemoteEvents, RemoteFunctions, client/server responsibility, and security;
-- Luau types, tables, functions, services, Instances, events, and ModuleScripts/OOP;
+- Luau types, tables, functions, control flow, standard-library iteration/type/error
+  behavior, services, Instances, events/connections, and ModuleScripts/OOP;
 - UI, DataStores, inventories, currencies, shops, combat, Tools, NPCs, rounds, and
   matchmaking;
 - developer-product receipt handling; and
@@ -22,8 +23,12 @@ The proof of concept stores 12 source-checked cards in
 
 ## Reliability model
 
-Each card has a versioned schema, a status, explicit claims, caveats, common pitfalls,
-reviewer checks, and source URLs.
+Each card has a versioned schema, a status, explicit claims, caveats, implementation
+patterns, common pitfalls, reviewer checks, and source URLs. In practice, the summary/title
+state the concept and purpose; patterns carry correct/practical use; pitfalls capture
+incorrect use and when-not-to-use guidance; claims/caveats carry API and security limits;
+and domains/keywords identify related APIs or concepts. Do not infer an unstated API fact
+from this structure.
 
 | Status | Meaning | Default retrieval? |
 |---|---|---:|

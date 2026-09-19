@@ -1,1 +1,1 @@
-"""Command modules for the Luau-AI specialization pipeline."""
+"""Command modules for the DukeOTR specialization pipeline."""

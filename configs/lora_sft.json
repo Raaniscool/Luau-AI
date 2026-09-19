@@ -1,11 +1,15 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
+  "project_name": "DukeOTR",
+  "planned_dataset_version": "dukeotr_dataset_v1",
+  "planned_adapter_version": "dukeotr_v1",
+  "status": "planned_not_trained",
   "method": "lora_sft",
   "base_model": "Qwen/Qwen3-4B",
   "base_model_revision": "main",
   "training_file": "training_data/train.jsonl",
   "validation_file": "training_data/validation.jsonl",
-  "output_dir": "models/adapters/qwen3-4b-roblox-luau-lora",
+  "output_dir": "models/adapters/dukeotr_v1-lora",
   "max_seq_length": 2048,
   "num_train_epochs": 2,
   "learning_rate": 0.0001,
@@ -22,6 +26,7 @@
   "minimum_recommended_cuda_vram_gb": 24,
   "notes": [
     "Use only if the full-precision/bfloat16 base fits comfortably on the CUDA device.",
-    "QLoRA is the recommended first experiment for this project."
+    "QLoRA is the recommended first experiment for DukeOTR.",
+    "The presence of this configuration does not mean dukeotr_v1 has been trained."
   ]
 }

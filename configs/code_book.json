@@ -1,12 +1,14 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
+  "project_name": "DukeOTR",
   "cards_file": "code_book/roblox_luau_cards.jsonl",
   "allowed_statuses_for_default_retrieval": ["source_checked", "human_verified"],
-  "required_source_host_suffixes": ["create.roblox.com"],
+  "required_source_host_suffixes": ["create.roblox.com", "luau.org"],
   "training_policy": "manual_curation_only",
   "default_max_query_results": 5,
   "notes": [
-    "The Code Book is reference context, not automatic fine-tuning data.",
+    "The DukeOTR Code Book is reference context, not automatic fine-tuning data.",
+    "Official Roblox Creator Hub/API and official Luau documentation are permitted primary sources.",
     "Source-checked cards still require human/API verification before high-stakes use."
   ]
 }

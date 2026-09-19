@@ -1,20 +1,25 @@
-# Data pipeline and quality contract
+# DukeOTR data pipeline and quality contract
 
 ## Design goal
 
-The corpus is intended to teach a pretrained Qwen3 model **Roblox/Luau specialization**,
-not basic language. Each row is an auditable instructional conversation with a source task,
-not an unreviewed dump of model text.
+DukeOTR specializes a pretrained Qwen3 model for **Roblox/Luau engineering**, not basic
+language. Each row is an auditable instructional conversation with a source task, not an
+unreviewed dump of model text. Natural English remains expected in every curated answer.
 
-The tracked seed catalog has 70 varied task specifications across beginner,
-intermediate, and advanced work. `scripts.audit_catalog --fail-on-missing` verifies all
-required coverage themes and checks exact duplicate source briefs. It currently reports:
+The repository has two tracked project-authored source-brief catalogs:
 
-- 23 code-generation briefs, 14 architecture briefs, 8 bug fixes, 6 security reviews,
-  6 explanations, 5 API tasks, 4 code reviews, 2 optimizations, and 2 natural-language
-  conversions;
-- 14 beginner, 29 intermediate, and 27 advanced briefs; and
-- a separate 24-task held-out evaluation file.
+- `raw_data/dukeotr_phase1_luau_seed_tasks.jsonl` has 45 dedicated Luau-fundamentals
+  briefs. `scripts/audit_dukeotr_curriculum.py --strict` verifies its required concepts,
+  instructional modes, difficulty range, duplicate prompts, and held-out collisions.
+- `raw_data/roblox_luau_seed_tasks.jsonl` has 70 broad Roblox/Luau briefs across
+  beginner, intermediate, and advanced work. `scripts/audit_catalog.py --fail-on-missing`
+  verifies its broader coverage themes and exact duplicate source briefs.
+
+The broad catalog currently includes 23 code-generation briefs, 14 architecture briefs,
+8 bug fixes, 6 security reviews, 6 explanations, 5 API tasks, 4 code reviews, 2
+optimizations, and 2 natural-language conversions; its difficulty distribution is 14
+beginner, 29 intermediate, and 27 advanced. A separate 24-task held-out evaluation file is
+maintained throughout.
 
 These counts describe **source briefs**, not a falsely claimed completed training corpus.
 Each brief can produce one or more diverse, reviewed candidates.
@@ -53,10 +58,12 @@ snapshot of the findings that led to the repair. It never overwrites the origina
 
 ### 1. Generation
 
-`generate_examples.py` reads only `raw_data/roblox_luau_seed_tasks.jsonl`. It sends a
-structured task brief to local Ollama and demands a JSON envelope containing the answer,
-covered concepts, and self-check claims. Prompt variants are scenario-driven and source
-briefs use different task types and wording to avoid repetitive answers.
+`generate_examples.py` defaults to
+`raw_data/dukeotr_phase1_luau_seed_tasks.jsonl` and can take either curated catalog through
+`--seeds`. It sends a structured task brief to local Ollama only after the exact local model
+registration preflight, and demands a JSON envelope containing the answer, covered concepts,
+and self-check claims. Prompt variants are scenario-driven and source briefs use different
+task types and wording to avoid repetitive answers.
 
 Generation failures are written to a report rather than converted into guessed records.
 No generated artifact is final data.
@@ -104,12 +111,17 @@ recorded and `build_datasets.py` excludes them again as a final defense.
 
 ### 5. Final dataset creation
 
-`build_datasets.py` creates:
+`build_datasets.py` creates, within an explicitly selected output directory:
 
-- `training_data/final_dataset.jsonl` — every accepted final conversation;
-- `training_data/train.jsonl` — deterministic stratified training split; and
-- `training_data/validation.jsonl` — a small development split, distinct from the
+- `<output-dir>/final_dataset.jsonl` — every accepted final conversation;
+- `<output-dir>/train.jsonl` — deterministic stratified training split; and
+- `<output-dir>/validation.jsonl` — a small development split, distinct from the
   held-out evaluation suite.
+
+`run_pipeline.py` supplies a per-run directory such as
+`training_data/dukeotr_phase1_pilot_001/` and refuses to reuse it without an explicit
+reviewed overwrite. A final version name such as `dukeotr_dataset_v1` is reserved until its
+manifest and quality evidence actually exist.
 
 It refuses each record lacking any of these: valid schema, static pass, accepting LLM or
 human review, `unique` dedupe status, and evaluation isolation. A manifest records
@@ -127,7 +139,7 @@ Then apply it without hand-editing candidate data:
 
 ```bash
 python -m scripts.record_human_review \
-  --input validated_data/validated_examples.jsonl \
+  --input validated_data/dukeotr_phase1_candidates.validated.jsonl \
   --decisions my_decisions.jsonl \
   --output validated_data/human_reviewed_examples.jsonl
 ```

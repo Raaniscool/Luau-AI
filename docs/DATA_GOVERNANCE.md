@@ -1,4 +1,4 @@
-# Dataset governance
+# DukeOTR dataset governance
 
 ## Allowed tracked inputs in Phase 1
 
@@ -20,12 +20,17 @@ Record all of the following in a manifest adjacent to the source:
 Do not copy private Roblox experiences, plugin source with unclear rights, chat logs,
 Roblox credentials/cookies, exploit scripts, or other unsafe code into any pipeline stage.
 
-## Generated data
+## Generated data and version claims
 
 Synthetic output inherits all the usual quality risks: hallucinated API calls, obsolete
 patterns, security mistakes, repetitive language, and benchmark contamination. It must
 retain source-model/settings metadata and pass the documented review gates. Synthetic data
 is not evidence that code was executed or works in Roblox Studio.
+
+Do not label an artifact `dukeotr_dataset_v1` merely because it was generated. That version
+name is reserved for a final, quality-gated, deduplicated corpus with a recorded manifest,
+provenance, and evaluation-isolation evidence. Likewise, no adapter/model can be called
+`dukeotr_v1` without its actual compatible training artifact and held-out evaluation record.
 
 ## Evaluation integrity
 

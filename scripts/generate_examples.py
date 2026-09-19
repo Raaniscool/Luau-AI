@@ -1,6 +1,7 @@
-"""Stage 1: expand curated Roblox/Luau task briefs through a local Ollama model.
+"""Stage 1: expand curated DukeOTR Roblox/Luau task briefs through local Ollama.
 
-Run from repository root, for example:
+The default catalog is DukeOTR's Phase-1 Luau-fundamentals curriculum. Run from the
+repository root, for example:
     python -m scripts.generate_examples --model qwen3:4b --limit 8
 
 Output is only a candidate corpus. It must proceed through validation before training.
@@ -28,9 +29,17 @@ from scripts.lib.schema import make_generated_record, validate_seed
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description="Generate candidate Roblox/Luau examples with local Ollama")
-    value.add_argument("--seeds", default="raw_data/roblox_luau_seed_tasks.jsonl", help="Curated train seed JSONL")
+    value.add_argument(
+        "--seeds",
+        default="raw_data/dukeotr_phase1_luau_seed_tasks.jsonl",
+        help="Curated train seed JSONL; defaults to the DukeOTR Phase-1 fundamentals catalog",
+    )
     value.add_argument("--config", default="configs/pipeline.json", help="Pipeline JSON config")
-    value.add_argument("--output", default="generated_data/generated_examples.jsonl", help="Candidate JSONL destination")
+    value.add_argument(
+        "--output",
+        default="generated_data/dukeotr_phase1_candidates.jsonl",
+        help="Candidate JSONL destination; choose a unique pilot path to preserve prior candidates",
+    )
     value.add_argument("--report", default=None, help="Optional generation report path")
     value.add_argument("--model", default=None, help="Ollama model tag; defaults to pipeline config")
     value.add_argument("--host", default=None, help="Ollama API host, or set OLLAMA_HOST")
@@ -40,6 +49,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--temperature", type=float, default=None)
     value.add_argument("--num-predict", type=int, default=None)
     value.add_argument("--dry-run", action="store_true", help="Validate/plan only; do not contact Ollama")
+    value.add_argument("--overwrite", action="store_true", help="Replace an existing candidate JSONL only after reviewing it")
     value.add_argument("--continue-on-error", action="store_true", help="Write successful candidates if one generation fails")
     return value
 
@@ -77,7 +87,13 @@ def run(arguments: argparse.Namespace) -> int:
     if variants < 1:
         raise ValueError("--variants must be at least 1")
     selected = select_seeds(list(read_jsonl(arguments.seeds)), arguments.seed_id, arguments.limit)
-    report_path = Path(arguments.report) if arguments.report else Path(arguments.output).with_suffix(".generation_report.json")
+    output_path = Path(arguments.output)
+    if output_path.exists() and not arguments.dry_run and not arguments.overwrite:
+        raise ValueError(
+            f"Refusing to overwrite existing candidate output: {output_path}. "
+            "Choose a new --output path or use --overwrite only after preserving/reviewing it."
+        )
+    report_path = Path(arguments.report) if arguments.report else output_path.with_suffix(".generation_report.json")
     planned = {
         "stage": "generation",
         "created_at": utc_now(),
@@ -163,13 +179,13 @@ def run(arguments: argparse.Namespace) -> int:
         "options": options,
         "generated_records": len(records),
         "failures": failures,
-        "output": str(arguments.output),
+        "output": str(output_path),
         "output_sha256": sha256_text("\n".join(record["record_id"] for record in records)) if records else None,
     }
     if records:
-        write_jsonl_atomic(arguments.output, records)
+        write_jsonl_atomic(output_path, records)
     write_json_atomic(report_path, report)
-    print(f"Wrote {len(records)} candidate records to {arguments.output}; report: {report_path}")
+    print(f"Wrote {len(records)} candidate records to {output_path}; report: {report_path}")
     if failures:
         return 2
     return 0

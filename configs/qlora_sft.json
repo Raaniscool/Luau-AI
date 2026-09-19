@@ -1,12 +1,16 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
+  "project_name": "DukeOTR",
+  "planned_dataset_version": "dukeotr_dataset_v1",
+  "planned_adapter_version": "dukeotr_v1",
+  "status": "planned_not_trained",
   "method": "qlora_sft",
   "base_model": "Qwen/Qwen3-4B",
   "base_model_revision": "main",
   "training_file": "training_data/train.jsonl",
   "validation_file": "training_data/validation.jsonl",
-  "output_dir": "models/adapters/qwen3-4b-roblox-luau-qlora",
-  "report_dir": "reports/training",
+  "output_dir": "models/adapters/dukeotr_v1-qlora",
+  "report_dir": "reports/training/dukeotr_v1",
   "seed": 3407,
   "max_seq_length": 2048,
   "num_train_epochs": 2,
@@ -53,6 +57,8 @@
   "notes": [
     "This config trains only LoRA adapter weights; the 4-bit base remains frozen.",
     "Use the original Hugging Face base, not an Ollama quantized blob, for training.",
-    "Start with a small pilot and inspect held-out results before increasing epochs."
+    "Use only quality-gated records from a versioned DukeOTR dataset and keep held-out evaluation data excluded.",
+    "Start with a small pilot and inspect held-out results before increasing epochs.",
+    "The presence of this configuration does not mean dukeotr_v1 has been trained."
   ]
 }

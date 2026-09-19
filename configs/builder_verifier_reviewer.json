@@ -1,24 +1,26 @@
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
+  "project_name": "DukeOTR",
   "status": "future_interface_only_not_an_orchestrator",
   "roles": {
     "builder": {
       "input": ["user_request", "constraints", "prior_feedback", "code_book_context"],
       "output": ["solution", "file_layout", "assumptions", "security_notes", "test_plan", "code_book_card_revisions"]
     },
-    "verifier": {
-      "input": ["user_request", "builder_solution", "code_book_context"],
-      "output": ["requirement_results", "api_findings", "security_findings", "test_findings", "code_book_findings", "verdict"]
-    },
     "reviewer": {
-      "input": ["user_request", "builder_solution", "verifier_report", "code_book_context"],
-      "output": ["strengths", "weaknesses", "prioritized_feedback", "code_book_findings", "revision_required"]
+      "input": ["user_request", "builder_solution", "code_book_context"],
+      "output": ["requirement_results", "api_findings", "security_findings", "test_findings", "code_book_findings", "prioritized_feedback", "verdict"]
+    },
+    "fixer": {
+      "input": ["user_request", "builder_solution", "reviewer_report", "code_book_context"],
+      "output": ["revised_solution", "changes_made", "remaining_assumptions", "unresolved_risks"]
     }
   },
   "invariants": [
     "The server remains authoritative for rewards, currencies, inventory, and combat outcomes.",
+    "A LocalScript can call RemoteEvent:FireServer; remotes do not automatically validate or authorize client input.",
     "Untrusted client input is validated, rate-limited where relevant, and never treated as proof of ownership.",
     "Each role emits machine-readable JSON alongside human-readable rationale.",
-    "Evaluation tasks and their rubrics remain unavailable to the builder during training."
+    "Evaluation tasks, rubrics, base answers, and score artifacts remain unavailable to all data-generation roles."
   ]
 }

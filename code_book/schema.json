@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Luau-AI Code Book Card",
-  "description": "Source-attributed Roblox/Luau knowledge card. Cards are not automatically training data.",
+  "title": "DukeOTR Code Book Card",
+  "description": "DukeOTR source-attributed Roblox/Luau knowledge card. Cards are not automatically training data.",
   "type": "object",
   "required": [
     "schema_version",

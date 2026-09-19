@@ -1,8 +1,8 @@
-# Code Book proof-of-concept plan
+# DukeOTR Code Book proof-of-concept and expansion plan
 
 ## Purpose
 
-The Code Book is a versioned, source-attributed knowledge layer for the Roblox/Luau
+The DukeOTR Code Book is a versioned, source-attributed knowledge layer for the Roblox/Luau
 specialization project. It is **not** automatically treated as fine-tuning data and it is
 not an excuse to trust generated code. Its first job is to give future Builder, Reviewer,
 and Fixer roles a small set of independently auditable facts and implementation checklists.
@@ -24,6 +24,23 @@ and Fixer roles a small set of independently auditable facts and implementation 
 6. Strengthen the held-out RemoteEvent task with explicit regression checks for the known
    baseline errors: clients **can** call `FireServer`, and a RemoteEvent does **not** make
    client input secure.
+
+## Next curated expansion: Phase-1 fundamentals
+
+The original 12-card starter set has been extended with three source-checked Phase-1 cards
+for control flow/function contracts, standard-library iteration/type/error behavior, and
+event-connection lifecycle. Before using Code Book context for the full Phase-1 curriculum,
+add narrowly scoped cards for the remaining topics in small,
+source-checked batches: values/scope/operators/control flow; loops; functions/returns;
+table shapes and iteration; strings/math/randomness; runtime type checks; annotations and
+strictness; ModuleScript/`require` boundaries; error/result contracts; and
+connections/callback/closure lifecycle.
+
+Each new card should make its **purpose**, syntax/pattern, practical use, common mistakes,
+reviewer checks, related APIs/concepts, appropriate difficulty, and any security caveat
+explicit. Only claims with a cited authoritative source may be described as official API or
+language behavior; design advice must remain an `engineering_pattern`. Where a topic has no
+meaningful security angle or "when not to use" rule, say so rather than inventing one.
 
 ## Card lifecycle
 

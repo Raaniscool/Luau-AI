@@ -1,6 +1,6 @@
-# Roblox/Luau Code Book
+# DukeOTR Roblox/Luau Code Book
 
-The Code Book is a compact, versioned, source-attributed knowledge layer for the project.
+The DukeOTR Code Book is a compact, versioned, source-attributed knowledge layer for the project.
 It is deliberately different from the fine-tuning corpus:
 
 - **Cards are factual reference material**, not automatically supervised-training rows.

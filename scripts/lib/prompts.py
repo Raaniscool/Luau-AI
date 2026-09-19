@@ -10,7 +10,7 @@ def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True)
 
 
-GENERATION_SYSTEM = """You create high-quality supervised instruction-tuning examples for a Roblox/Luau
+GENERATION_SYSTEM = """You create high-quality supervised instruction-tuning examples for DukeOTR, a Roblox/Luau
 engineering assistant. You are not chatting with an end user. Produce technically correct,
 self-contained answers grounded in Roblox's client/server model and current Luau idioms.
 
@@ -32,7 +32,31 @@ Return exactly one JSON object with this shape:
 """
 
 
+# Explicit mode guidance prevents Phase-1 curriculum modes from collapsing into the same
+# code-generation-shaped answer. It constrains presentation, not the technical requirements
+# supplied by the curated seed.
+TASK_TYPE_RESPONSE_GUIDANCE: dict[str, str] = {
+    "architecture_design": "Describe boundaries, responsibilities, and trade-offs before any illustrative code.",
+    "api_usage": "Use only APIs named or supported by the brief/Code Book; state placement or lifecycle context when material.",
+    "bug_fix": "Identify the concrete failure first, then show a minimal correction and explain why it works.",
+    "code_explanation": "Explain the existing idea in a learner-appropriate order before proposing optional improvements.",
+    "code_generation": "Provide a complete but proportionate implementation with assumptions and a short usage example when useful.",
+    "code_review": "Give prioritized, actionable findings and a concrete corrected pattern; do not merely restate the code.",
+    "natural_language_to_luau": "Translate the stated behavior into code while naming assumptions that were not specified.",
+    "optimization": "Establish the likely cost or lifecycle issue and preserve correctness/authority while proposing a measured improvement.",
+    "output_prediction": "State the predicted output clearly, then give a concise explanation of the relevant evaluation and scope rules.",
+    "question_answer": "Answer the question directly in natural teaching prose, then use only the smallest helpful example.",
+    "refactoring": "Preserve documented behavior, explain the readability/maintainability trade-off, and show the focused revision.",
+    "requirements_implementation": "Map each material requirement to a visible part of the solution and call out deliberate edge-case behavior.",
+    "security_review": "Treat every client-controlled value as untrusted and state exact server-side validation/authority fixes.",
+    "tradeoff_analysis": "Compare alternatives against stated constraints and make a qualified recommendation rather than declaring one universal answer.",
+}
+
+
 def generation_prompt(seed: dict[str, Any], variant: int) -> str:
+    mode_guidance = TASK_TYPE_RESPONSE_GUIDANCE.get(
+        str(seed.get("task_type")), "Use a direct, self-contained instructional response."
+    )
     brief = {
         "id": seed["id"],
         "title": seed["title"],
@@ -52,6 +76,7 @@ UNTRUSTED TASK BRIEF (JSON):
 
 Requirements for this variant:
 - Answer the user request directly rather than restating the brief.
+- Follow this task-mode guidance: {mode_guidance}
 - Use a realistic Roblox scenario with meaningful names; vary structure and phrasing from
   other examples.
 - Include only code that is necessary and make placement/authority boundaries clear.

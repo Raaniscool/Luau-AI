@@ -26,8 +26,8 @@ from scripts.lib.quality import validate_record
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description="Validate Roblox/Luau candidate JSONL")
-    value.add_argument("--input", default="generated_data/generated_examples.jsonl")
-    value.add_argument("--output", default="validated_data/validated_examples.jsonl")
+    value.add_argument("--input", default="generated_data/dukeotr_phase1_candidates.jsonl")
+    value.add_argument("--output", default="validated_data/dukeotr_phase1_candidates.validated.jsonl")
     value.add_argument("--report", default=None)
     value.add_argument("--config", default="configs/pipeline.json")
     value.add_argument("--model", default=None, help="Independent reviewer model; default qwen3:4b")

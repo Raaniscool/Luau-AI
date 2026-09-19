@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "project_name": "DukeOTR",
+  "project_slug": "dukeotr",
+  "name_origin": "Named in honor of an earlier AI project associated with the phrases 'on the river' and 'duke'.",
+  "starting_ollama_model": "qwen3:4b",
+  "training_base_model": "Qwen/Qwen3-4B",
+  "model_identity": {
+    "planned_first_adapter_version": "dukeotr_v1",
+    "planned_ollama_tag": "dukeotr-v1-qwen3-4b",
+    "status": "planned_not_trained"
+  },
+  "dataset_identity": {
+    "planned_first_dataset_version": "dukeotr_dataset_v1",
+    "target_final_examples_min": 1000,
+    "target_final_examples_max": 5000,
+    "status": "curriculum_and_seed_expansion_in_progress",
+    "quality_rule": "Only quality-gated, deduplicated, evaluation-isolated records count toward a dataset version."
+  },
+  "source_seed_catalogs": [
+    "raw_data/roblox_luau_seed_tasks.jsonl",
+    "raw_data/dukeotr_phase1_luau_seed_tasks.jsonl"
+  ],
+  "held_out_evaluation": "evaluation_data/roblox_luau_eval.jsonl",
+  "code_book": "code_book/roblox_luau_cards.jsonl",
+  "invariants": [
+    "DukeOTR is a specialization of the existing pretrained Qwen3-4B base, not a model trained from scratch.",
+    "Natural, grammatically correct, varied English is required in curated examples; basic-English filler is not a training priority.",
+    "Evaluation prompts, rubrics, baseline answers, and score records never become training input.",
+    "A RemoteEvent is not secure by itself; LocalScripts can call FireServer and the server validates all client-controlled input.",
+    "No DukeOTR training, adapter, Ollama import, or improvement is claimed until its artifact and evaluation evidence exist."
+  ]
+}

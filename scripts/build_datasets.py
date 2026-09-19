@@ -27,9 +27,9 @@ from scripts.lib.schema import quality_gate_status, record_fingerprint
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description="Build final quality-gated Roblox/Luau training data")
-    value.add_argument("--input", default="validated_data/deduplicated_examples.jsonl")
+    value.add_argument("--input", default="validated_data/dukeotr_phase1_candidates.deduplicated.jsonl")
     value.add_argument("--evaluation", default="evaluation_data/roblox_luau_eval.jsonl")
-    value.add_argument("--output-dir", default="training_data")
+    value.add_argument("--output-dir", default="training_data/dukeotr_phase1_candidates")
     value.add_argument("--report", default=None)
     value.add_argument("--config", default="configs/pipeline.json")
     value.add_argument("--validation-ratio", type=float, default=None)

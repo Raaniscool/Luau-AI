@@ -26,7 +26,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--base", required=True, help="Exact matching Ollama base tag or matching local GGUF/model path")
     value.add_argument("--adapter", required=True, help="Converted adapter path (prefer a verified GGUF adapter)")
     value.add_argument("--output-dir", default="models/ollama")
-    value.add_argument("--name", default="luau-ai-qwen3-4b")
+    value.add_argument("--name", default="dukeotr-v1-qwen3-4b")
     value.add_argument("--system", default="You are a careful Roblox and Luau engineering assistant. Keep servers authoritative and validate untrusted client input.")
     value.add_argument("--allow-safetensors-template", action="store_true", help="Write a template for safetensors only after independently verifying compatibility")
     return value

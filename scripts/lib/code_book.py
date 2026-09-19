@@ -26,7 +26,11 @@ def text_tokens(value: str) -> set[str]:
     return set(_TOKEN_RE.findall(value.lower()))
 
 
-def validate_card(card: dict[str, Any], *, allowed_source_host_suffixes: tuple[str, ...] = ("create.roblox.com",)) -> list[dict[str, str]]:
+def validate_card(
+    card: dict[str, Any],
+    *,
+    allowed_source_host_suffixes: tuple[str, ...] = ("create.roblox.com", "luau.org"),
+) -> list[dict[str, str]]:
     """Return structural/provenance findings without pretending to prove API truth."""
     problems: list[dict[str, str]] = []
     if card.get("schema_version") != CODE_BOOK_SCHEMA_VERSION:

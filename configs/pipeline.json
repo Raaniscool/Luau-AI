@@ -1,5 +1,14 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
+  "project": {
+    "name": "DukeOTR",
+    "project_config": "configs/dukeotr_project.json",
+    "active_stage": "phase_1_luau_fundamentals",
+    "active_seed_catalog": "raw_data/dukeotr_phase1_luau_seed_tasks.jsonl",
+    "dataset_version_target": "dukeotr_dataset_v1",
+    "model_version_target": "dukeotr_v1",
+    "status": "curriculum_only_not_trained"
+  },
   "base_ollama_model": "qwen3:4b",
   "generator": {
     "temperature": 0.35,

@@ -1,4 +1,4 @@
-"""Versioned schemas and record constructors for the Luau-AI data pipeline.
+"""Versioned schemas and record constructors for the DukeOTR data pipeline.
 
 The project uses plain dictionaries and explicit validators rather than a heavyweight
 runtime dependency so the data pipeline can run on the same Windows machine as Ollama.
@@ -14,16 +14,24 @@ from scripts.lib.io_utils import canonical_json, sha256_text, utc_now
 SCHEMA_VERSION = "1.0"
 
 VALID_DIFFICULTIES = {"beginner", "intermediate", "advanced"}
+# Task types are instructional modes, not quality labels. Keeping them explicit lets the
+# curriculum audit prevent a code-generation-only corpus from being mistaken for broad Luau
+# instruction coverage.
 VALID_TASK_TYPES = {
-    "code_generation",
-    "code_explanation",
-    "bug_fix",
-    "code_review",
     "architecture_design",
-    "security_review",
-    "optimization",
     "api_usage",
+    "bug_fix",
+    "code_explanation",
+    "code_generation",
+    "code_review",
     "natural_language_to_luau",
+    "optimization",
+    "output_prediction",
+    "question_answer",
+    "refactoring",
+    "requirements_implementation",
+    "security_review",
+    "tradeoff_analysis",
 }
 VALID_REVIEW_DECISIONS = {"accept", "revise", "reject"}
 
@@ -125,8 +133,8 @@ def make_generated_record(
             {
                 "role": "system",
                 "content": (
-                    "You are a careful Roblox and Luau engineering assistant. Give correct, "
-                    "practical, security-aware guidance. Clearly state assumptions and never "
+                    "You are DukeOTR, a careful Roblox and Luau engineering assistant. Give "
+                    "correct, practical, security-aware guidance. Clearly state assumptions and never "
                     "treat a client as authoritative for server-owned game state."
                 ),
             },

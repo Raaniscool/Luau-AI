@@ -23,7 +23,7 @@ from scripts.lib.schema import reviewer_approved, validate_example_structure
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description="Deduplicate reviewed Roblox/Luau training candidates")
     value.add_argument("--input", action="append", default=[], help="Reviewed JSONL input; repeat for corrected records")
-    value.add_argument("--output", default="validated_data/deduplicated_examples.jsonl")
+    value.add_argument("--output", default="validated_data/dukeotr_phase1_candidates.deduplicated.jsonl")
     value.add_argument("--report", default=None)
     value.add_argument("--evaluation", default="evaluation_data/roblox_luau_eval.jsonl")
     value.add_argument("--config", default="configs/pipeline.json")
@@ -56,7 +56,7 @@ def run(arguments: argparse.Namespace) -> int:
     )
     if not 0 < threshold <= 1 or not 0 < cross_threshold <= 1:
         raise ValueError("Deduplication thresholds must be in (0, 1]")
-    inputs = arguments.input or ["validated_data/validated_examples.jsonl"]
+    inputs = arguments.input or ["validated_data/dukeotr_phase1_candidates.validated.jsonl"]
     source_records: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     duplicate_ids: list[str] = []

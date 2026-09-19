@@ -12,7 +12,7 @@ from scripts.lib.code_book import context_view, load_cards, search_cards, valida
 class CodeBookTests(unittest.TestCase):
     def test_source_checked_cards_are_structurally_valid(self) -> None:
         cards = load_cards("code_book/roblox_luau_cards.jsonl")
-        self.assertGreaterEqual(len(cards), 12)
+        self.assertGreaterEqual(len(cards), 15)
         for card in cards:
             errors = [finding for finding in validate_card(card) if finding["severity"] == "error"]
             self.assertEqual(errors, [], card["id"])
@@ -29,6 +29,20 @@ class CodeBookTests(unittest.TestCase):
         self.assertIn("not make client input trustworthy", statements)
         context = context_view(next(match for match in matches if match["card"]["id"] == "cb-remoteevents-client-server-authority"))
         self.assertEqual(context["patterns"][0]["id"], "request-validate-mutate-notify")
+
+    def test_phase1_cards_add_source_checked_fundamentals(self) -> None:
+        cards = {card["id"]: card for card in load_cards("code_book/roblox_luau_cards.jsonl")}
+        expected = {
+            "cb-luau-standard-library-iteration-errors",
+            "cb-luau-control-flow-function-contracts",
+            "cb-roblox-event-connections-lifecycle",
+        }
+        self.assertTrue(expected.issubset(cards))
+        for card_id in expected:
+            self.assertEqual(cards[card_id]["status"], "source_checked")
+            self.assertEqual(cards[card_id]["training_policy"], "manual_curation_only")
+        matches = search_cards(list(cards.values()), "pairs pcall table iteration", limit=5)
+        self.assertIn("cb-luau-standard-library-iteration-errors", [match["card"]["id"] for match in matches])
 
     def test_audit_reports_complete_required_coverage(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

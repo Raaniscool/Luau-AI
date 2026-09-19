@@ -27,8 +27,8 @@ from scripts.lib.schema import clone_for_correction
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description="Correct failed/revise Roblox/Luau candidates")
-    value.add_argument("--input", default="validated_data/validated_examples.jsonl")
-    value.add_argument("--output", default="validated_data/corrected_candidates.jsonl")
+    value.add_argument("--input", default="validated_data/dukeotr_phase1_candidates.validated.jsonl")
+    value.add_argument("--output", default="validated_data/dukeotr_phase1_candidates.corrected.jsonl")
     value.add_argument("--report", default=None)
     value.add_argument("--config", default="configs/pipeline.json")
     value.add_argument("--model", default=None)

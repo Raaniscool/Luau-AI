@@ -106,7 +106,7 @@ After that compatibility work, this helper writes a reviewed template but does n
 `ollama create` for you:
 
 ```powershell
-python .\scripts\prepare_ollama_modelfile.py --base C:\models\matching-qwen3-4b.gguf --adapter C:\models\verified-luau-adapter.gguf --name luau-ai-qwen3-4b
+python .\scripts\prepare_ollama_modelfile.py --base C:\models\matching-qwen3-4b.gguf --adapter C:\models\verified-dukeotr-adapter.gguf --name dukeotr-v1-qwen3-4b
 ```
 
 `models/` is ignored: do not commit weights, adapter blobs, GGUFs, checkpoints, or Ollama
