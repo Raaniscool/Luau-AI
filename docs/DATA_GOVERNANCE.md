@@ -33,6 +33,20 @@ provenance, and evaluation-isolation evidence. Likewise, no adapter/model can be
 `dukeotr_v1`, `dukeotr-v1`, or stable public `dukeotr` without its actual compatible training
 artifact, held-out evaluation record, and release approval.
 
+## Verified reference-library boundary
+
+`verified_knowledge/` is a separate source-checked runtime reference library for narrow,
+unchanged fast answers. It is not `raw_data/`, generated data, validated data, or training data,
+and no script automatically converts or promotes its entries into any dataset. Its source
+catalog records official documentation URL/type/version wording/check date; source checking does
+not grant blanket permission to train on copied documentation.
+
+The library may use a local wording-level collision audit against the held-out suite, but that
+audit reports only library IDs, held-out task IDs, and similarity scores. It must never emit or
+supply a held-out prompt, rubric, expected answer, baseline, candidate answer, or score to a
+matcher, model, or training process. Any output-capable library tool must refuse the resolved
+`evaluation_data/roblox_luau_eval.jsonl` path.
+
 ## Evaluation integrity
 
 Never feed the evaluation prompt file, rubrics, baseline answers, candidate answers, or

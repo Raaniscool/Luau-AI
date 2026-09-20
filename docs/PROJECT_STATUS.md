@@ -24,6 +24,12 @@ names are technical provenance, not the public identity of a completed model.
 - A 25-card source-checked DukeOTR Code Book foundation, source policy, retrieval, and
   granular coverage audit for the requested Luau/Roblox concept floor. It is reference context
   and manual-curation input—not automatic training data.
+- A separate 27-entry Verified Roblox Knowledge / Fast-Answer library with 19 normalized
+  official Roblox Creator Hub source records, deterministic alias/intention matching,
+  source-attributed Quick/Normal/Deep rendering, conservative escalation to the existing
+  adaptive effort router, and a strict provenance/API/freshness/duplicate/evaluation-isolation
+  audit. It is neither Code Book promotion nor training data, has no model call, and refuses
+  writes to the held-out evaluation file.
 - Generation, validation/review, correction, deduplication, final-dataset, baseline,
   evaluation/scoring/comparison, hardware-preflight, and guarded adapter-training scripts.
 - A strict per-task JSON Schema path for the LLM evaluation scorer, with unit coverage for

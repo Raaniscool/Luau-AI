@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0",
+  "project_name": "DukeOTR",
+  "status": "source_checked_fast_answer_layer_not_training_data",
+  "entries_file": "verified_knowledge/roblox_luau_fast_answers.jsonl",
+  "sources_file": "verified_knowledge/sources.json",
+  "schema_file": "verified_knowledge/schema.json",
+  "code_book_file": "code_book/roblox_luau_cards.jsonl",
+  "evaluation_file": "evaluation_data/roblox_luau_eval.jsonl",
+  "adaptive_fallback": {
+    "classifier": "scripts.lib.effort_routing.classify_task",
+    "effort_config": "configs/builder_verifier_reviewer.json",
+    "downstream_orchestrator": "python -m scripts.run_builder_reviewer_fixer",
+    "policy": "verified_match_first_then_unchanged_adaptive_effort_routing_on_every_no_match_or_escalation"
+  },
+  "audit_output": "reports/verified_knowledge_audit.json",
+  "minimum_source_checked_entries": 27,
+  "allowed_source_host_suffixes": [
+    "create.roblox.com",
+    "luau.org"
+  ],
+  "training_policy": "not_training_data_or_auto_promotion",
+  "evaluation_policy": "not_sourced_from_held_out_evaluation",
+  "supported_api_names": [
+    "BasePart.Touched",
+    "CFrame",
+    "CFrame.new",
+    "Color3",
+    "Color3.fromRGB",
+    "Color3.new",
+    "ContextActionService",
+    "ContextActionService:BindAction",
+    "Humanoid",
+    "Instance",
+    "Instance.new",
+    "Instance:FindFirstChild",
+    "Instance:WaitForChild",
+    "LocalScript",
+    "ModuleScript",
+    "Player",
+    "Player.Character",
+    "Player.CharacterAdded",
+    "Players",
+    "Players.PlayerAdded",
+    "Players:GetPlayers",
+    "RBXScriptConnection:Disconnect",
+    "RBXScriptSignal",
+    "RBXScriptSignal:Connect",
+    "RemoteEvent",
+    "RemoteEvent.OnClientEvent",
+    "RemoteEvent.OnServerEvent",
+    "RemoteEvent:FireAllClients",
+    "RemoteEvent:FireClient",
+    "RemoteEvent:FireServer",
+    "RemoteFunction",
+    "RemoteFunction.OnServerInvoke",
+    "RemoteFunction:InvokeServer",
+    "ReplicatedStorage",
+    "RunService",
+    "RunService.Heartbeat",
+    "RunService.RenderStepped",
+    "Script",
+    "ServerScriptService",
+    "ServerStorage",
+    "StarterGui",
+    "StarterPlayer",
+    "Tween:Play",
+    "TweenInfo.new",
+    "TweenService",
+    "TweenService:Create",
+    "UserInputService",
+    "UserInputService.InputBegan",
+    "Vector3",
+    "Vector3.new",
+    "require"
+  ],
+  "rejected_api_names": [
+    "Instance:FindChild",
+    "Player:IsAuthenticated",
+    "PlayerService",
+    "RemoteEvent:SecureFireServer",
+    "ReplicatedStorageService",
+    "WorkspaceService"
+  ],
+  "duplicate_similarity_threshold": 0.9,
+  "matcher": {
+    "maximum_prompt_characters": 500,
+    "maximum_content_tokens": 12,
+    "minimum_confidence": 0.84,
+    "ambiguity_margin": 0.08,
+    "stale_after_days": 180,
+    "definition_intent_patterns": [
+      "\\bwhat is\\b",
+      "\\bwhat does .+ mean\\b",
+      "\\bwhat does .+ do\\b",
+      "\\bhow does .+ work\\b",
+      "\\bdefine\\b",
+      "\\b(?:can you )?explain\\b",
+      "\\btell me about\\b"
+    ],
+    "quick_depth_patterns": [
+      "\\bbrief(?:ly)?\\b",
+      "\\bquick(?:ly)?\\b",
+      "\\bshort(?: answer)?\\b",
+      "\\bone sentence\\b"
+    ],
+    "deep_depth_patterns": [
+      "\\bin detail\\b",
+      "\\bdetailed\\b",
+      "\\bdeep(?:ly)?\\b",
+      "\\bunder the hood\\b",
+      "\\buse cases?\\b",
+      "\\bmisconceptions?\\b"
+    ],
+    "escalation_patterns": {
+      "ambiguous": [
+        "\\bwhat is this\\b",
+        "\\bthis thing\\b",
+        "\\bthat thing\\b",
+        "\\bnot sure\\b",
+        "\\bunclear\\b",
+        "\\bunspecified\\b"
+      ],
+      "version_sensitive": [
+        "\\blatest\\b",
+        "\\bcurrent version\\b",
+        "\\bdeprecated\\b",
+        "\\bchanged? in version\\b",
+        "\\brelease notes?\\b"
+      ],
+      "custom_implementation": [
+        "\\bwrite (?:a|an|my|the)\\b",
+        "\\bbuild (?:a|an|my|the)\\b",
+        "\\bimplement\\b",
+        "\\bcreate (?:a|an|my|the)\\b",
+        "\\bmake (?:a|an|my|the)\\b",
+        "\\bcustom\\b",
+        "\\bmy game\\b",
+        "\\bcode for\\b"
+      ],
+      "debugging_or_architecture": [
+        "\\bdebug\\b",
+        "\\bfix\\b",
+        "\\berror\\b",
+        "\\bwhy (?:is|does|isn)\\b",
+        "\\barchitecture\\b",
+        "\\bdesign (?:a|an|my|the)\\b",
+        "\\brefactor\\b",
+        "\\boptimi[sz]e\\b"
+      ],
+      "security_or_authority": [
+        "\\bsecurity\\b",
+        "\\bsecure\\b",
+        "\\bexploit\\b",
+        "\\bauthori[sz]e\\b",
+        "\\bvalidate\\b",
+        "\\buntrusted\\b",
+        "\\banti cheat\\b"
+      ],
+      "complex_client_server_detail": [
+        "\\bbetween (?:the )?client and (?:the )?server\\b",
+        "\\bclient to server\\b",
+        "\\bserver to client\\b",
+        "\\bclient server flow\\b",
+        "\\bmulti player\\b"
+      ]
+    }
+  },
+  "invariants": [
+    "Verified knowledge is source-checked reference material, not training data, model weights, or an automatic training-data promotion path.",
+    "A fast answer is returned only when deterministic intent/alias matching is confident, the entry is current and stable, and the request fits an entry's approved depth.",
+    "Ambiguous, multi-concept, version-sensitive, custom-code, debugging, architecture, security, and detailed client/server requests fall back to the existing adaptive Builder → Reviewer/Tester → Fixer system.",
+    "The verified library must not contain held-out evaluation prompts, rubrics, expected answers, baseline answers, or score material."
+  ]
+}

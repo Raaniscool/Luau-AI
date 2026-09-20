@@ -13,10 +13,12 @@ identity of a finished specialized assistant.
 > **Current status — foundation and curriculum work only; no DukeOTR adapter is trained.**
 > The repository contains 80 broad project-authored Roblox/Luau source briefs, a dedicated
 > 51-brief DukeOTR Phase-1 Luau-fundamentals curriculum, a 100-task permanently held-out,
-> rubric-driven evaluation suite, and a 25-card source-checked Code Book foundation with a
-> granular coverage audit.
-> None of those source briefs is a completed training dataset. Generated candidates, accepted
-> records, adapters, and model claims require the documented gates and evidence.
+> rubric-driven evaluation suite, a 25-card source-checked Code Book foundation, and a separate
+> 27-entry official-source-backed Verified Roblox Knowledge / Fast-Answer library with a strict
+> provenance/isolation audit.
+> None of those source briefs or verified-reference entries is a completed training dataset.
+> Generated candidates, accepted records, adapters, and model claims require the documented gates
+> and evidence.
 
 Read the current non-claims in [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), the
 [eight-month readiness assessment](docs/DUKEOTR_READINESS_ASSESSMENT.md), the staged curriculum
@@ -60,6 +62,30 @@ best-possible answer or a dataset/model promotion. The present work intentionall
 curriculum, provenance, validation, review, correction, deduplication, final-dataset gates,
 and the held-out evaluation boundary separate.
 
+### Verified Roblox Knowledge / Fast-Answer layer
+
+A separate, structured, official-source-backed library sits **ahead of** the adaptive quality
+route for narrow definition/explanation questions. Its deterministic matcher recognizes curated
+aliases such as “What is a Roblox event?”, “What’s an event in Roblox?”, and “Explain Roblox
+events.” A source-checked Quick, Normal, or Deep entry is returned only when matching is
+unambiguous, current, fully covered, and unchanged from the curated reference text.
+
+Everything else—including custom code, debugging, architecture, security, version-sensitive,
+ambiguous or multi-concept requests, and detailed client/server RemoteEvent behavior—falls back
+to the existing `effort_routing.classify_task()` decision and then the established
+Builder → Reviewer/Tester → Fixer system. This preserves rather than replaces the validated
+quality architecture. The layer is not model inference and does not invoke Ollama.
+
+```powershell
+python .\scripts\query_verified_knowledge.py --prompt "What’s an event in Roblox?"
+python .\scripts\audit_verified_knowledge.py --strict
+```
+
+See [`verified_knowledge/README.md`](verified_knowledge/README.md) for the entry format,
+source catalog, escalation rules, audit coverage, isolation guarantees, and maintenance process.
+The library is explicitly not training data, is never auto-promoted, and cannot overwrite the
+permanently held-out evaluation JSONL.
+
 ## What is included
 
 - **DukeOTR identity/version contract** in `configs/dukeotr_project.json`:
@@ -96,7 +122,8 @@ validated_data/    Local review/correction/dedupe artifacts (ignored)
 training_data/     Local quality-gated dataset versions only (ignored)
 evaluation_data/   Held-out prompts/rubrics (tracked; permanently excluded from training)
 code_book/         Source-attributed Roblox/Luau cards (tracked; manual curation only)
-configs/           DukeOTR, pipeline, and adapter-planning configurations
+verified_knowledge/ Source-checked fast-answer entries/sources (tracked; separate from training)
+configs/           DukeOTR, pipeline, adapter-planning, and verified-knowledge configurations
 scripts/           Dependency-light pipeline, evaluation, and training entry points
 models/            Ignored adapters/checkpoints/export artifacts
 reports/           Ignored baseline/evaluation/training reports
