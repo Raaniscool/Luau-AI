@@ -34,7 +34,9 @@ DukeOTR remains technically derived from these base artifacts:
 
 Those Qwen references are required in technical metadata, license/notice material, training
 configuration, compatibility checks, and reproducibility records. They are **provenance**, not
-the public identity of the finished assistant.
+the public identity of the finished assistant. The matching Hugging Face base is obtained only
+on the future suitable training machine; Arena does not access the user's local Windows Ollama
+files. See [TRAINING_MACHINE_RUNBOOK.md](TRAINING_MACHINE_RUNBOOK.md).
 
 ## Naming policy
 

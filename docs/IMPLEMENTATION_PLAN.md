@@ -83,9 +83,13 @@ synthetic prompts.
 - Aim for approximately **1,000–5,000** quality-gated, diverse, reviewed examples before
   calling the first corpus `dukeotr_dataset_v1`.
 - Create a dataset manifest/changelog only when the artifact actually exists.
-- Run LoRA/QLoRA only on suitable CUDA/cloud hardware with the matching Hugging Face base.
-- Record exact base revision, config, dataset manifest/hash, adapter output, training report,
-  and held-out result before calling an artifact `dukeotr_v1`.
+- Run LoRA/QLoRA only on a suitable CUDA/cloud machine with the matching Hugging Face base;
+  Arena never accesses the Windows Ollama cache or claims that it trained DukeOTR.
+- Keep the reviewed final JSONL ignored by Git and hand it to the training host separately with
+  its versioned manifest and SHA-256 hashes.
+- Record exact base revision, config, dataset manifest/hash, source Git revision, dependency
+  versions, adapter output, training report, and held-out result before calling an artifact
+  `dukeotr_v1`.
 - Validate import compatibility before creating the planned versioned DukeOTR Ollama tag
   `dukeotr-v1`; only after held-out evaluation and human release approval may it receive the
   stable public alias `dukeotr`. Never commit model binaries by default.

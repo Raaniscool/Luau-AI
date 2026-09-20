@@ -135,8 +135,12 @@ not be reused. A final version name such as
 
 It refuses each record lacking any of these: valid schema, a pass from the current static
 checker, accepting LLM or human review, `unique` dedupe status, and evaluation isolation. A
-manifest records
-coverage, source path, rejected IDs/reasons, hashes, and split counts.
+manifest records coverage, source path, rejected IDs/reasons, split counts, and SHA-256 values
+for all final JSONL files. A deliberate `--dataset-version dukeotr_dataset_v1` is required
+before an output identifies itself as that planned version; unversioned local finals remain
+pilots. The ignored data can then be packaged with `prepare_training_bundle.py` for a separate
+CUDA/cloud host without putting it in Git. See
+[TRAINING_MACHINE_RUNBOOK.md](TRAINING_MACHINE_RUNBOOK.md).
 
 ## Human review
 

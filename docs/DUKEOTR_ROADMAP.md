@@ -153,4 +153,5 @@ The current Windows system is appropriate for local Ollama inference, Code Book 
 review, and evaluation. It is not a dependable 4B QLoRA training host with integrated Intel
 graphics and about 11.7 GB system RAM. Train only LoRA/QLoRA adapters on a suitable CUDA or
 cloud environment using the matching Hugging Face `Qwen/Qwen3-4B` base, then verify
-adapter/base compatibility before any Ollama import.
+adapter/base compatibility before any Ollama import. The versioned-data handoff and exact
+training-machine procedure are documented in [TRAINING_MACHINE_RUNBOOK.md](TRAINING_MACHINE_RUNBOOK.md).

@@ -14,6 +14,7 @@ if __package__ in {None, ""}:
     _bootstrap_sys.path.insert(0, str(_BootstrapPath(__file__).resolve().parents[1]))
 
 import argparse
+import re
 import sys
 from collections import Counter, defaultdict
 from copy import deepcopy
@@ -21,8 +22,21 @@ from pathlib import Path
 from typing import Any
 
 from scripts.lib.dedupe import cross_split_prompt_collisions
-from scripts.lib.io_utils import canonical_json, read_json, read_jsonl, sha256_text, text_from_message, utc_now, write_json_atomic, write_jsonl_atomic
+from scripts.lib.io_utils import (
+    canonical_json,
+    read_json,
+    read_jsonl,
+    sha256_file,
+    sha256_text,
+    text_from_message,
+    utc_now,
+    write_json_atomic,
+    write_jsonl_atomic,
+)
 from scripts.lib.schema import STATIC_CHECKER_VERSION, quality_gate_status, record_fingerprint
+
+
+_DATASET_VERSION_RE = re.compile(r"dukeotr_dataset_v[1-9][0-9]*")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -33,6 +47,11 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--report", default=None)
     value.add_argument("--config", default="configs/pipeline.json")
     value.add_argument("--validation-ratio", type=float, default=None)
+    value.add_argument(
+        "--dataset-version",
+        default=None,
+        help="Optional created dataset identity, for example dukeotr_dataset_v1; omit for an unversioned local pilot",
+    )
     value.add_argument("--strict", action="store_true", help="Return nonzero if any leakage collision is found")
     value.add_argument("--allow-empty", action="store_true", help="For pipeline plumbing checks only; never use for training")
     return value
@@ -113,6 +132,8 @@ def coverage(records: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def run(arguments: argparse.Namespace) -> int:
+    if arguments.dataset_version is not None and not _DATASET_VERSION_RE.fullmatch(arguments.dataset_version):
+        raise ValueError("--dataset-version must use DukeOTR form dukeotr_dataset_vN")
     config = read_json(arguments.config)
     dedupe_config = dict(config.get("deduplication", {}))
     build_config = dict(config.get("dataset_build", {}))
@@ -175,11 +196,23 @@ def run(arguments: argparse.Namespace) -> int:
     write_jsonl_atomic(train_path, train)
     write_jsonl_atomic(dev_path, development)
     write_jsonl_atomic(final_path, final)
+    file_sha256 = {
+        "train": sha256_file(train_path),
+        "validation": sha256_file(dev_path),
+        "final": sha256_file(final_path),
+    }
+    file_bytes = {
+        "train": train_path.stat().st_size,
+        "validation": dev_path.stat().st_size,
+        "final": final_path.stat().st_size,
+    }
 
     manifest = {
         "schema_version": "1.0",
         "stage": "final_dataset_creation",
         "created_at": utc_now(),
+        "dataset_version": arguments.dataset_version,
+        "dataset_version_status": "created" if arguments.dataset_version else "unversioned_local_final",
         "source_input": str(arguments.input),
         "held_out_evaluation": str(arguments.evaluation),
         "input_records": len(records),
@@ -191,6 +224,8 @@ def run(arguments: argparse.Namespace) -> int:
         "coverage": coverage(final),
         "final_record_fingerprints_sha256": sha256_text(canonical_json(sorted(record_fingerprint(item) for item in final))),
         "files": {"train": str(train_path), "validation": str(dev_path), "final": str(final_path)},
+        "file_sha256": file_sha256,
+        "file_bytes": file_bytes,
         "quality_gate": (
             f"schema + {STATIC_CHECKER_VERSION} pass + recorded reviewer acceptance + "
             "unique deduplication + held-out collision exclusion"

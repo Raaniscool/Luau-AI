@@ -25,6 +25,16 @@ def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def sha256_file(path: str | Path, *, chunk_size: int = 1024 * 1024) -> str:
+    """Return a streaming SHA-256 digest without loading a potentially large artifact into memory."""
+    source = Path(path)
+    digest = hashlib.sha256()
+    with source.open("rb") as handle:
+        while chunk := handle.read(chunk_size):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 

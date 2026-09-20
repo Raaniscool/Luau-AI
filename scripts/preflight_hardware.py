@@ -109,8 +109,13 @@ def torch_details() -> dict[str, Any]:
         return {"installed": True, "cuda_available": False, "error": str(exc)}
 
 
-def assess_hardware(minimum_cuda_vram_gb: float) -> dict[str, Any]:
-    """Return a serializable assessment used by CLI and training entry points."""
+def assess_hardware(minimum_cuda_vram_gb: float, minimum_system_ram_gib: float | None = None) -> dict[str, Any]:
+    """Return a serializable assessment used by CLI and training entry points.
+
+    CUDA/VRAM is the hard guard for the shipped QLoRA path. Host RAM is recorded as a
+    separately visible recommendation because a workload may technically start below the
+    planning target yet be too fragile to endorse as a normal DukeOTR run.
+    """
     torch_info = torch_details()
     gpus = nvidia_gpus()
     detected_vram = [gpu["memory_gib"] for gpu in gpus if isinstance(gpu.get("memory_gib"), (int, float))]
@@ -119,11 +124,21 @@ def assess_hardware(minimum_cuda_vram_gb: float) -> dict[str, Any]:
             item["memory_gib"] for item in torch_info.get("devices", []) if isinstance(item.get("memory_gib"), (int, float))
         )
     largest_vram = max(detected_vram) if detected_vram else 0.0
+    system_ram = system_ram_gb()
     suitable = bool(torch_info.get("cuda_available")) and largest_vram >= minimum_cuda_vram_gb
-    if suitable:
+    meets_ram_recommendation = (
+        minimum_system_ram_gib is None or system_ram is None or system_ram >= minimum_system_ram_gib
+    )
+    if suitable and meets_ram_recommendation:
         recommendation = (
             "Suitable for a conservative local QLoRA pilot. Start with the configured batch size of 1, "
-            "gradient checkpointing, and a small subset; monitor VRAM and evaluation quality."
+            "gradient checkpointing, and a small subset; monitor VRAM, host RAM, and evaluation quality."
+        )
+    elif suitable:
+        recommendation = (
+            f"CUDA/VRAM meets the QLoRA guard, but detected system RAM ({system_ram:.2f} GiB) is below the "
+            f"configured {minimum_system_ram_gib:.0f} GiB planning recommendation. A run may be fragile; "
+            "increase host RAM or proceed only after an explicitly measured pilot."
         )
     elif torch_info.get("cuda_available"):
         recommendation = (
@@ -139,7 +154,9 @@ def assess_hardware(minimum_cuda_vram_gb: float) -> dict[str, Any]:
     return {
         "checked_at": utc_now(),
         "platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine(), "python": sys.version.split()[0]},
-        "system_ram_gib": system_ram_gb(),
+        "system_ram_gib": system_ram,
+        "minimum_recommended_system_ram_gib": minimum_system_ram_gib,
+        "meets_recommended_system_ram": meets_ram_recommendation,
         "nvidia_gpus": gpus,
         "torch": torch_info,
         "minimum_recommended_cuda_vram_gib": minimum_cuda_vram_gb,
@@ -165,7 +182,10 @@ def parser() -> argparse.ArgumentParser:
 
 def run(arguments: argparse.Namespace) -> int:
     config = read_json(arguments.config)
-    report = assess_hardware(float(config.get("minimum_recommended_cuda_vram_gb", 16)))
+    report = assess_hardware(
+        float(config.get("minimum_recommended_cuda_vram_gb", 16)),
+        float(config["minimum_recommended_system_ram_gib"]) if config.get("minimum_recommended_system_ram_gib") is not None else None,
+    )
     report["config"] = str(arguments.config)
     write_json_atomic(arguments.output, report)
     if arguments.print_json:

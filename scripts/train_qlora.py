@@ -20,12 +20,16 @@ import argparse
 import inspect
 import json
 import os
+import platform
+import subprocess
 import sys
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
-from scripts.lib.io_utils import read_json, read_jsonl, utc_now, write_json_atomic
+from scripts.lib.io_utils import canonical_json, read_json, read_jsonl, sha256_file, sha256_text, utc_now, write_json_atomic
+from scripts.lib.schema import quality_gate_status
 from scripts.preflight_hardware import assess_hardware
 
 
@@ -45,7 +49,12 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-def validate_training_records(path: str | Path, label: str) -> list[dict[str, Any]]:
+def validate_training_records(path: str | Path, label: str, *, expected_partition: str) -> list[dict[str, Any]]:
+    """Reject anything that is not a current, finalized DukeOTR data record.
+
+    This duplicates the final-dataset gate deliberately: a future training host must not
+    accidentally fine-tune from an arbitrary JSONL file simply because it looks chat-shaped.
+    """
     records = list(read_jsonl(path))
     if not records:
         raise ValueError(f"{label} dataset is empty: {path}")
@@ -55,6 +64,8 @@ def validate_training_records(path: str | Path, label: str) -> list[dict[str, An
         messages = record.get("messages")
         if metadata.get("split") != "train":
             errors.append(f"{label}:{index} does not have metadata.split=train")
+        if metadata.get("dataset_partition") != expected_partition:
+            errors.append(f"{label}:{index} is not finalized for dataset_partition={expected_partition}")
         if not isinstance(messages, list) or len(messages) < 3:
             errors.append(f"{label}:{index} does not have canonical messages")
             continue
@@ -65,9 +76,134 @@ def validate_training_records(path: str | Path, label: str) -> list[dict[str, An
             errors.append(f"{label}:{index} has blank message content")
         if str(record.get("source_seed_id", "")).startswith("eval-"):
             errors.append(f"{label}:{index} appears to include an evaluation source id")
+        eligible, reasons = quality_gate_status(record)
+        if not eligible:
+            errors.append(f"{label}:{index} no longer passes the final quality gate: {', '.join(reasons)}")
     if errors:
         raise ValueError("Training JSONL validation failed:\n- " + "\n- ".join(errors[:30]))
     return records
+
+
+def _path_from_config(config: dict[str, Any], key: str) -> Path:
+    value = config.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Training configuration requires non-empty {key!r}")
+    return Path(value)
+
+
+def validate_dataset_manifest(
+    config: dict[str, Any],
+    *,
+    train_path: Path,
+    validation_path: Path,
+    train_records: list[dict[str, Any]],
+    validation_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Verify a versioned final-data manifest and its file hashes before training."""
+    manifest_path = _path_from_config(config, "dataset_manifest")
+    manifest = read_json(manifest_path)
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Dataset manifest must be a JSON object: {manifest_path}")
+    expected_version = config.get("planned_dataset_version")
+    if manifest.get("stage") != "final_dataset_creation":
+        raise ValueError("Dataset manifest was not created by the final-dataset stage")
+    if manifest.get("dataset_version_status") != "created" or manifest.get("dataset_version") != expected_version:
+        raise ValueError(
+            f"Dataset manifest is not the required created version {expected_version!r}; "
+            "build a reviewed version explicitly with --dataset-version before training."
+        )
+    hashes = manifest.get("file_sha256")
+    if not isinstance(hashes, dict):
+        raise ValueError("Dataset manifest has no file_sha256 values; rebuild the final dataset with the current builder.")
+    final_path = manifest_path.parent / "final_dataset.jsonl"
+    expected_files = {"train": train_path, "validation": validation_path, "final": final_path}
+    actual_hashes: dict[str, str] = {}
+    for role, path in expected_files.items():
+        if not path.exists():
+            raise FileNotFoundError(f"Dataset manifest expects {role} artifact, but it does not exist: {path}")
+        expected_hash = hashes.get(role)
+        actual_hash = sha256_file(path)
+        if not isinstance(expected_hash, str) or expected_hash != actual_hash:
+            raise ValueError(f"SHA-256 mismatch for {role} dataset artifact: {path}")
+        actual_hashes[role] = actual_hash
+    counts = manifest.get("partition_counts", {})
+    if not isinstance(counts, dict) or counts.get("train") != len(train_records) or counts.get("development") != len(validation_records):
+        raise ValueError("Dataset manifest partition counts do not match the supplied train/validation JSONL files")
+    if counts.get("final") != len(train_records) + len(validation_records):
+        raise ValueError("Dataset manifest final count does not equal train plus development records")
+    return {
+        "manifest_path": str(manifest_path),
+        "manifest_sha256": sha256_file(manifest_path),
+        "dataset_version": manifest.get("dataset_version"),
+        "created_at": manifest.get("created_at"),
+        "quality_gate": manifest.get("quality_gate"),
+        "file_sha256": actual_hashes,
+        "partition_counts": counts,
+    }
+
+
+def repository_provenance() -> dict[str, Any]:
+    """Record source revision without making Git availability a training prerequisite."""
+    root = Path(__file__).resolve().parents[1]
+    try:
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root, check=True, capture_output=True, text=True, timeout=10
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=root, check=True, capture_output=True, text=True, timeout=10
+        ).stdout.strip()
+        return {"git_revision": revision, "working_tree_clean": not bool(dirty)}
+    except (FileNotFoundError, OSError, subprocess.SubprocessError):
+        return {"git_revision": None, "working_tree_clean": None}
+
+
+def dependency_versions() -> dict[str, str | None]:
+    packages = ("torch", "transformers", "datasets", "peft", "accelerate", "bitsandbytes", "safetensors", "trl")
+    resolved: dict[str, str | None] = {}
+    for package in packages:
+        try:
+            resolved[package] = version(package)
+        except PackageNotFoundError:
+            resolved[package] = None
+    return resolved
+
+
+def training_plan_readiness(config: dict[str, Any]) -> dict[str, Any]:
+    """Describe artifacts required for a future run without treating a plan as training."""
+    paths = {key: str(_path_from_config(config, key)) for key in ("dataset_manifest", "training_file", "validation_file")}
+    return {
+        "paths": paths,
+        "exists": {key: Path(path).exists() for key, path in paths.items()},
+        "expected_dataset_version": config.get("planned_dataset_version"),
+        "required_dataset_format": config.get("dataset_format"),
+        "transfer_policy": config.get("dataset_transfer_policy"),
+    }
+
+
+def verify_training_inputs_for_plan(config: dict[str, Any]) -> dict[str, Any]:
+    """Check transferred final data hashes without importing ML dependencies or training."""
+    readiness = training_plan_readiness(config)
+    if not all(readiness["exists"].values()):
+        return {
+            "status": "not_ready",
+            "reason": "Versioned final dataset artifacts are not all present; no data validation or training was attempted.",
+            "readiness": readiness,
+        }
+    try:
+        train_path = _path_from_config(config, "training_file")
+        validation_path = _path_from_config(config, "validation_file")
+        train_records = validate_training_records(train_path, "train", expected_partition="train")
+        validation_records = validate_training_records(validation_path, "validation", expected_partition="development")
+        dataset_provenance = validate_dataset_manifest(
+            config,
+            train_path=train_path,
+            validation_path=validation_path,
+            train_records=train_records,
+            validation_records=validation_records,
+        )
+    except (FileNotFoundError, ValueError, OSError) as exc:
+        return {"status": "invalid", "error": str(exc), "readiness": readiness}
+    return {"status": "verified", "readiness": readiness, "dataset_provenance": dataset_provenance}
 
 
 def format_messages(tokenizer: Any, messages: list[dict[str, str]], *, add_generation_prompt: bool) -> str:
@@ -147,7 +283,10 @@ def execute_training(config: dict[str, Any], arguments: argparse.Namespace, repo
         raise ValueError(f"Unsupported method {method!r}")
     if arguments.max_train_samples < 0 or arguments.max_eval_samples < 0:
         raise ValueError("sample limits must be zero or positive")
-    assessment = assess_hardware(float(config.get("minimum_recommended_cuda_vram_gb", 16)))
+    assessment = assess_hardware(
+        float(config.get("minimum_recommended_cuda_vram_gb", 16)),
+        float(config["minimum_recommended_system_ram_gib"]) if config.get("minimum_recommended_system_ram_gib") is not None else None,
+    )
     if not assessment["suitable_for_configured_qlora"] and not arguments.force_unsafe_hardware:
         write_json_atomic(
             report_path,
@@ -162,8 +301,19 @@ def execute_training(config: dict[str, Any], arguments: argparse.Namespace, repo
         )
         raise RuntimeError("Hardware guard blocked training. See report; use cloud/suitable CUDA hardware.")
 
-    train_records = validate_training_records(config["training_file"], "train")
-    eval_records = validate_training_records(config["validation_file"], "validation")
+    train_path = _path_from_config(config, "training_file")
+    validation_path = _path_from_config(config, "validation_file")
+    train_records = validate_training_records(train_path, "train", expected_partition="train")
+    eval_records = validate_training_records(validation_path, "validation", expected_partition="development")
+    dataset_provenance = validate_dataset_manifest(
+        config,
+        train_path=train_path,
+        validation_path=validation_path,
+        train_records=train_records,
+        validation_records=eval_records,
+    )
+    source_train_record_count = len(train_records)
+    source_validation_record_count = len(eval_records)
     if arguments.max_train_samples:
         train_records = train_records[: arguments.max_train_samples]
     if arguments.max_eval_samples:
@@ -183,13 +333,19 @@ def execute_training(config: dict[str, Any], arguments: argparse.Namespace, repo
     set_seed(int(config.get("seed", 3407)))
     use_bf16 = bool(config.get("bf16", True)) and bool(torch.cuda.is_bf16_supported())
     compute_dtype = torch.bfloat16 if use_bf16 else torch.float16
-    tokenizer = AutoTokenizer.from_pretrained(config["base_model"], revision=config.get("base_model_revision"))
+    requested_base_revision = config.get("base_model_revision")
+    tokenizer = AutoTokenizer.from_pretrained(config["base_model"], revision=requested_base_revision)
+    resolved_tokenizer_revision = getattr(tokenizer, "_commit_hash", None) or getattr(tokenizer, "init_kwargs", {}).get("_commit_hash")
+    # If the config intentionally starts from a moving reference such as main, bind the
+    # model load to the tokenizer's resolved commit for this run and record it in the report.
+    # A later exact rerun should replace the config revision with that recorded commit.
+    model_revision = resolved_tokenizer_revision or requested_base_revision
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
     model_kwargs: dict[str, Any] = {
-        "revision": config.get("base_model_revision"),
+        "revision": model_revision,
         "torch_dtype": compute_dtype,
         "device_map": {"": int(os.environ.get("LOCAL_RANK", "0"))},
     }
@@ -202,7 +358,7 @@ def execute_training(config: dict[str, Any], arguments: argparse.Namespace, repo
             bnb_4bit_compute_dtype=compute_dtype,
         )
     model = AutoModelForCausalLM.from_pretrained(config["base_model"], **model_kwargs)
-    resolved_base_revision = getattr(model.config, "_commit_hash", None)
+    resolved_base_revision = getattr(model.config, "_commit_hash", None) or model_revision
     model.config.use_cache = False
     if method == "qlora_sft":
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=bool(config.get("gradient_checkpointing", True)))
@@ -279,9 +435,35 @@ def execute_training(config: dict[str, Any], arguments: argparse.Namespace, repo
         "base_model": config["base_model"],
         "base_model_revision_requested": config.get("base_model_revision"),
         "base_model_revision_resolved": resolved_base_revision,
+        "tokenizer_revision_resolved": resolved_tokenizer_revision,
+        "base_model_revision_policy": config.get("base_model_revision_policy"),
+        "training_config_sha256": sha256_text(canonical_json(config)),
+        "dataset_provenance": dataset_provenance,
+        "repository_provenance": repository_provenance(),
+        "runtime": {
+            "python": sys.version.split()[0],
+            "platform": platform.platform(),
+            "dependencies": dependency_versions(),
+            "torch_cuda_version": getattr(torch.version, "cuda", None),
+            "cuda_device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        },
+        "tokenization": {
+            "format": config.get("dataset_format"),
+            "chat_template": "base_tokenizer.apply_chat_template(enable_thinking=False)",
+            "assistant_completion_loss_only": True,
+            "overlength_policy": "drop_entire_record_without_truncating_assistant_completion",
+            "max_seq_length": int(config["max_seq_length"]),
+        },
+        "adapter_output": {
+            "kind": "PEFT_adapter_only",
+            "planned_adapter_version": config.get("planned_adapter_version"),
+            "path": str(output_dir),
+        },
         "output_dir": str(output_dir),
         "hardware": assessment,
         "effective_precision": "bfloat16" if use_bf16 else "float16",
+        "dataset_train_records_before_pilot_limit": source_train_record_count,
+        "dataset_validation_records_before_pilot_limit": source_validation_record_count,
         "train_records_requested": len(train_records),
         "validation_records_requested": len(eval_records),
         "dropped_overlength_train_records": dropped_train,
@@ -300,9 +482,11 @@ def run(arguments: argparse.Namespace) -> int:
     config = read_json(arguments.config)
     report_path = Path(arguments.report or Path(config.get("report_dir", "reports/training")) / f"training_{_timestamp()}.json")
     if not arguments.execute:
-        assessment = assess_hardware(float(config.get("minimum_recommended_cuda_vram_gb", 16)))
-        train_exists = Path(config["training_file"]).exists()
-        validation_exists = Path(config["validation_file"]).exists()
+        assessment = assess_hardware(
+            float(config.get("minimum_recommended_cuda_vram_gb", 16)),
+            float(config["minimum_recommended_system_ram_gib"]) if config.get("minimum_recommended_system_ram_gib") is not None else None,
+        )
+        input_verification = verify_training_inputs_for_plan(config)
         write_json_atomic(
             report_path,
             {
@@ -311,14 +495,15 @@ def run(arguments: argparse.Namespace) -> int:
                 "status": "not_executed",
                 "reason": "--execute was not supplied; no model training has happened.",
                 "config": config,
-                "training_file_exists": train_exists,
-                "validation_file_exists": validation_exists,
+                "training_config_sha256": sha256_text(canonical_json(config)),
+                "repository_provenance": repository_provenance(),
+                "input_verification": input_verification,
                 "hardware": assessment,
-                "next_step": "Run on suitable CUDA/cloud hardware with --execute only after baseline and final dataset review.",
+                "next_step": "Run on a suitable CUDA/cloud host with --execute only after a versioned final dataset, successful bundle/hash verification, baseline review, and hardware preflight.",
             },
         )
         print(f"Wrote training plan (no training executed): {report_path}")
-        return 0
+        return 2 if input_verification["status"] == "invalid" else 0
     return execute_training(config, arguments, report_path)
 
 

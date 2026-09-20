@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from scripts.build_datasets import main as build_main
-from scripts.lib.io_utils import read_jsonl, write_jsonl_atomic
+from scripts.lib.io_utils import read_jsonl, sha256_file, write_jsonl_atomic
 from tests.helpers import reviewed_record
 
 
@@ -30,13 +30,29 @@ class DatasetBuildTests(unittest.TestCase):
                 "must_not": [],
             }
             write_jsonl_atomic(evaluation, [task])
-            code = build_main(["--input", str(source), "--evaluation", str(evaluation), "--output-dir", str(output)])
+            code = build_main(
+                [
+                    "--input",
+                    str(source),
+                    "--evaluation",
+                    str(evaluation),
+                    "--output-dir",
+                    str(output),
+                    "--dataset-version",
+                    "dukeotr_dataset_v1",
+                ]
+            )
             self.assertEqual(code, 0)
             final = list(read_jsonl(output / "final_dataset.jsonl"))
             self.assertEqual(len(final), 1)
             self.assertNotIn("eval-held-out", json.dumps(final))
             manifest = json.loads((output / "dataset_manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["accepted_records"], 1)
+            self.assertEqual(manifest["dataset_version"], "dukeotr_dataset_v1")
+            self.assertEqual(manifest["dataset_version_status"], "created")
+            self.assertEqual(manifest["file_sha256"]["train"], sha256_file(output / "train.jsonl"))
+            self.assertEqual(manifest["file_sha256"]["validation"], sha256_file(output / "validation.jsonl"))
+            self.assertEqual(manifest["file_sha256"]["final"], sha256_file(output / "final_dataset.jsonl"))
 
 
 if __name__ == "__main__":

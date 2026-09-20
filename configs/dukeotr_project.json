@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "project_name": "DukeOTR",
   "project_slug": "dukeotr",
   "name_origin": "Named in honor of an earlier AI project associated with the phrases 'on the river' and 'duke'.",
@@ -34,5 +34,31 @@
     "Evaluation prompts, rubrics, baseline answers, and score records never become training input.",
     "A RemoteEvent is not secure by itself; LocalScripts can call FireServer and the server validates all client-controlled input.",
     "No DukeOTR training, adapter, Ollama import, release alias, or improvement is claimed until its artifact and evaluation evidence exist."
-  ]
+  ],
+  "execution_boundary": {
+    "windows_workstation": {
+      "role": "existing_ollama_qwen3_4b_inference_baseline_generation_review_and_evaluation",
+      "ollama_model_files_policy": "do_not_modify_move_delete_or_redownload_existing_local_qwen3_4b_files",
+      "not_a_training_host": true
+    },
+    "arena": {
+      "role": "repository_dataset_pipeline_code_book_evaluation_and_training_tooling_development",
+      "cannot_access_windows_local_ollama": true,
+      "must_not_claim_training": true
+    },
+    "github": {
+      "role": "reproducible_source_configs_tests_and_documentation",
+      "must_not_store_by_default": [
+        "base_weights",
+        "adapters",
+        "checkpoints",
+        "generated_corpora",
+        "local_reports"
+      ]
+    },
+    "future_cuda_training_machine": {
+      "role": "matching_hugging_face_base_download_qlora_training_adapter_output_and_conversion_work",
+      "dataset_handoff": "separate_hash_verified_ignored_bundle"
+    }
+  }
 }

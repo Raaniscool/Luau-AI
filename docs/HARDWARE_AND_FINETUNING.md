@@ -1,5 +1,11 @@
 # DukeOTR hardware decision and QLoRA/LoRA preparation
 
+> **Execution boundary:** the Windows workstation owns its existing `qwen3:4b` Ollama
+> inference/evaluation workflow; Arena develops the repository but cannot use that local model
+> or run QLoRA; real adapter training belongs to a suitable CUDA/cloud host. The exact
+> handoff commands, data-hash contract, and output/evaluation procedure are in
+> [TRAINING_MACHINE_RUNBOOK.md](TRAINING_MACHINE_RUNBOOK.md).
+
 ## Decision for the stated Windows machine
 
 | Work | Suitable locally? | Why |
@@ -42,8 +48,9 @@ Start with **supervised fine-tuning (SFT) using QLoRA**:
 - Trainable parameters: LoRA adapters on attention and MLP projections only.
 - Defaults: rank 32, alpha 64, dropout 0.05, 2,048-token maximum, batch size 1, gradient
   accumulation 16, gradient checkpointing, and two epochs.
-- Dataset: only `training_data/train.jsonl`; development checks use
-  `training_data/validation.jsonl`; held-out evaluation never enters SFT.
+- Dataset: only `training_data/dukeotr_dataset_v1/train.jsonl`; development checks use
+  `training_data/dukeotr_dataset_v1/validation.jsonl`; the versioned manifest hashes both
+  files and held-out evaluation never enters SFT.
 
 This is appropriate for the first domain-specialization experiment because it minimizes
 trainable state and lets the base general capabilities remain mostly intact. It is not an
@@ -55,9 +62,11 @@ alternative for a larger GPU; QLoRA is preferred first.
 ## Suitable cloud/CUDA workflow
 
 Use a CUDA-capable environment with enough VRAM (project baseline: 16 GiB minimum;
-preferably 24 GiB or more), adequate host RAM/storage, and a clean virtual environment.
-Linux-based cloud environments tend to be the least fragile route for the current
-Transformers/PEFT/bitsandbytes stack.
+preferably 24 GiB or more), **32 GiB host RAM recommended**, and adequate storage (plan at
+least 50 GiB free for caches/checkpoints/outputs). Linux-based cloud environments tend to be
+the least fragile route for the current Transformers/PEFT/bitsandbytes stack. The versioned
+final dataset is not committed to Git; transfer a hash-verified bundle after its manual data
+release gate, as documented in [TRAINING_MACHINE_RUNBOOK.md](TRAINING_MACHINE_RUNBOOK.md).
 
 ```bash
 # On the suitable cloud/CUDA machine, from this repository:

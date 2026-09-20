@@ -1,5 +1,8 @@
 # Install this only on a suitable NVIDIA CUDA/cloud training environment.
-# See docs/HARDWARE_AND_FINETUNING.md before installing or executing training.
+# First install the CUDA-matched PyTorch wheel selected for the destination driver/platform;
+# then install this file. The real training report records the exact resolved package versions,
+# base commit, dataset/config hashes, and hardware for reruns.
+# See docs/TRAINING_MACHINE_RUNBOOK.md before installing or executing training.
 torch>=2.5
 transformers>=4.51,<5
 datasets>=3.0

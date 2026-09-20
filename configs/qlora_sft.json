@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "project_name": "DukeOTR",
   "planned_dataset_version": "dukeotr_dataset_v1",
   "planned_adapter_version": "dukeotr_v1",
@@ -10,8 +10,8 @@
   "method": "qlora_sft",
   "base_model": "Qwen/Qwen3-4B",
   "base_model_revision": "main",
-  "training_file": "training_data/train.jsonl",
-  "validation_file": "training_data/validation.jsonl",
+  "training_file": "training_data/dukeotr_dataset_v1/train.jsonl",
+  "validation_file": "training_data/dukeotr_dataset_v1/validation.jsonl",
   "output_dir": "models/adapters/dukeotr_v1-qlora",
   "report_dir": "reports/training/dukeotr_v1",
   "seed": 3407,
@@ -63,5 +63,11 @@
     "Use only quality-gated records from a versioned DukeOTR dataset and keep held-out evaluation data excluded.",
     "Start with a small pilot and inspect held-out results before increasing epochs.",
     "The presence of this configuration does not mean dukeotr_v1, dukeotr-v1, or dukeotr has been trained or created."
-  ]
+  ],
+  "dataset_manifest": "training_data/dukeotr_dataset_v1/dataset_manifest.json",
+  "dataset_format": "canonical_chat_jsonl_system_user_assistant_completion_only_loss",
+  "dataset_transfer_policy": "Final training JSONL remains ignored by Git and must be transferred separately with its manifest/hash to the CUDA training machine.",
+  "base_model_revision_policy": "Resolve and preserve the immutable Hugging Face commit hash in the training report before treating a run as reproducible.",
+  "minimum_recommended_system_ram_gib": 32,
+  "training_machine": "suitable_nvidia_cuda_or_cloud_host_only"
 }

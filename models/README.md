@@ -9,7 +9,8 @@ evaluation, and human release approval. Neither tag exists merely because this d
 configuration file exists.
 
 Keep the exact Qwen base revision, conversion details, license/notice material, adapter
-configuration, dataset manifest hash, and evaluation report alongside any real artifact. See
-[MODEL_IDENTITY.md](../docs/MODEL_IDENTITY.md) and
-[HARDWARE_AND_FINETUNING.md](../docs/HARDWARE_AND_FINETUNING.md) for the naming and
-compatibility requirements.
+configuration, dataset manifest hash, training report, and evaluation report alongside any
+real artifact. See [MODEL_IDENTITY.md](../docs/MODEL_IDENTITY.md),
+[HARDWARE_AND_FINETUNING.md](../docs/HARDWARE_AND_FINETUNING.md), and
+[TRAINING_MACHINE_RUNBOOK.md](../docs/TRAINING_MACHINE_RUNBOOK.md) for naming,
+handoff, reproducibility, and compatibility requirements.

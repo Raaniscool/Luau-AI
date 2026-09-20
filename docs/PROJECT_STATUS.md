@@ -29,6 +29,19 @@ names are technical provenance, not the public identity of a completed model.
 - Planned identity/version configuration for `dukeotr_dataset_v1`, `dukeotr_v1`, versioned
   candidate tag `dukeotr-v1`, and stable release alias `dukeotr`; all remain explicitly
   planned.
+- A future-training handoff contract: versioned final datasets carry file hashes, an ignored
+  transfer bundle can preserve data/config/provenance outside Git, and the guarded trainer
+  rechecks its final-data manifest before real execution.
+
+## Execution boundary
+
+The Windows workstation retains its existing `qwen3:4b` Ollama model for inference, prompt
+pilots, baseline/evaluation, and eventual DukeOTR candidate evaluation. Arena develops the
+repository and quality gates but cannot access that local model or perform QLoRA training.
+GitHub stores the reproducible source project, while the actual QLoRA run belongs on a suitable
+CUDA/cloud machine using the matching Hugging Face `Qwen/Qwen3-4B` base. The final reviewed
+JSONL stays ignored by Git and transfers to that machine separately with its manifest/hashes.
+See [TRAINING_MACHINE_RUNBOOK.md](TRAINING_MACHINE_RUNBOOK.md).
 
 ## Local evaluation evidence (not tracked here)
 

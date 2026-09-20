@@ -18,8 +18,26 @@ identity of a finished specialized assistant.
 > and model claims require the documented gates and evidence.
 
 Read the current non-claims in [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), the
-staged curriculum in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), and the explicit
-[DukeOTR identity/provenance policy](docs/MODEL_IDENTITY.md).
+staged curriculum in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), the explicit
+[DukeOTR identity/provenance policy](docs/MODEL_IDENTITY.md), and the
+[training-machine runbook](docs/TRAINING_MACHINE_RUNBOOK.md).
+
+## Execution boundary
+
+- **Windows workstation:** retains the existing `qwen3:4b` Ollama tag for local inference,
+  prompt/data pilots, baseline capture, and eventual DukeOTR evaluation. The repository never
+  moves, deletes, or replaces its Ollama files.
+- **Arena:** develops and tests the repository, source briefs, static data gates, evaluation
+  suite, configurations, and training tooling. It cannot reach the Windows Ollama service or
+  perform QLoRA training, so it never claims that it trained DukeOTR.
+- **GitHub:** carries reproducible source, configs, tests, and documentation—not base weights,
+  adapters, checkpoints, generated corpora, or local reports.
+- **Future CUDA/cloud machine:** receives a separately transferred, hash-verified final data
+  bundle; uses `Qwen/Qwen3-4B` for real QLoRA; then retains actual adapter/report/export
+  artifacts outside Git.
+
+See [docs/TRAINING_MACHINE_RUNBOOK.md](docs/TRAINING_MACHINE_RUNBOOK.md) for the complete
+handoff, training, evaluation, and Ollama-packaging procedure.
 
 ## DukeOTR sequence
 
@@ -266,8 +284,11 @@ python .\scripts\train_qlora.py  # plan/validation only; does not train without 
 ```
 
 `configs/qlora_sft.json` and `configs/lora_sft.json` describe planned output names under
-`dukeotr_v1`; they do not mean an adapter exists. Never commit large model binaries or
-checkpoints without an explicit reason and storage plan.
+`dukeotr_v1`; they do not mean an adapter exists. They expect a separately transferred,
+versioned `training_data/dukeotr_dataset_v1/` manifest and hash-checked JSONL rather than
+Git-tracked generated data. Follow [docs/TRAINING_MACHINE_RUNBOOK.md](docs/TRAINING_MACHINE_RUNBOOK.md)
+when suitable CUDA hardware is available. Never commit large model binaries or checkpoints
+without an explicit reason and storage plan.
 
 ## Measuring a real DukeOTR candidate
 
