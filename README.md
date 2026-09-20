@@ -12,8 +12,9 @@ identity of a finished specialized assistant.
 
 > **Current status — foundation and curriculum work only; no DukeOTR adapter is trained.**
 > The repository contains 80 broad project-authored Roblox/Luau source briefs, a dedicated
-> 51-brief DukeOTR Phase-1 Luau-fundamentals curriculum, a 24-task held-out evaluation
-> suite, and a 25-card source-checked Code Book foundation with a granular coverage audit.
+> 51-brief DukeOTR Phase-1 Luau-fundamentals curriculum, a 100-task permanently held-out,
+> rubric-driven evaluation suite, and a 25-card source-checked Code Book foundation with a
+> granular coverage audit.
 > None of those source briefs is a completed training dataset. Generated candidates, accepted
 > records, adapters, and model claims require the documented gates and evidence.
 
@@ -52,8 +53,12 @@ Qwen3-4B technical base
 
 The Builder/Reviewer/Fixer loop is now a bounded, trace-producing quality pilot for one
 isolated train brief at a time; it is not an autonomous self-training or auto-promotion system.
-The present work intentionally keeps curriculum, provenance, validation, review, correction,
-deduplication, final-dataset gates, and the held-out evaluation boundary separate.
+Before Builder work, deterministic conservative routing selects a minimal simple path, the
+standard reviewer path, or bounded deeper high-risk review. A candidate that passes its
+configured task-appropriate checks stops early; that is a trace decision, not a claim of a
+best-possible answer or a dataset/model promotion. The present work intentionally keeps
+curriculum, provenance, validation, review, correction, deduplication, final-dataset gates,
+and the held-out evaluation boundary separate.
 
 ## What is included
 
@@ -73,8 +78,9 @@ deduplication, final-dataset gates, and the held-out evaluation boundary separat
   the combined source-brief form evidence and held-out wording isolation.
 - A staged, auditable workflow:
   **generation → validation → review → correction → re-validation → deduplication → final dataset**.
-- A 24-task held-out rubric suite and original base-model baseline path that never become
-  training input.
+- A 100-task permanently held-out, rubric-driven evaluation suite spanning short and deep
+  tasks, task forms, difficulty levels, Luau/Roblox domains, and adversarial/security reasoning;
+  it and the original base-model baseline path never become training input.
 - A cited, manually curated DukeOTR Code Book proof of concept; it is reference context,
   not automatic SFT material.
 - Conservative LoRA/QLoRA configuration for a suitable CUDA/cloud environment, with model
@@ -321,5 +327,6 @@ python -m compileall -q scripts
 python scripts/audit_dukeotr_curriculum.py --strict
 python scripts/audit_catalog.py --fail-on-missing
 python scripts/audit_code_book.py --strict
+python scripts/audit_evaluation_suite.py --strict --require-mature-target
 python -m unittest discover -v
 ```

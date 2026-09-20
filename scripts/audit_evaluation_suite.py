@@ -1,8 +1,7 @@
 """Audit DukeOTR's permanently held-out evaluation suite and expansion plan.
 
-The audit reports coverage and authoring gaps without reading evaluation content into any
-training/generation role. It never generates answers, scores a model, or treats the planned
-100–300 task target as already achieved.
+The audit reports coverage and authored-task taxonomy without reading evaluation content into
+any training/generation role. It never generates answers, runs a model, or fabricates scores.
 """
 
 from __future__ import annotations
@@ -47,7 +46,7 @@ def _load_plan(path: str) -> dict[str, Any]:
     if not isinstance(plan, dict):
         raise ValueError("Evaluation coverage plan must be a JSON object")
     errors: list[str] = []
-    _error(errors, plan.get("schema_version") == "1.0", "schema_version must be '1.0'")
+    _error(errors, plan.get("schema_version") == "1.1", "schema_version must be '1.1'")
     _error(errors, plan.get("project_name") == "DukeOTR", "project_name must be DukeOTR")
     _error(errors, plan.get("suite_policy") == "permanently_held_out_not_generation_or_training_input", "suite_policy must preserve permanent isolation")
     _error(errors, isinstance(plan.get("suite_file"), str) and bool(plan["suite_file"]), "suite_file must be a non-empty string")
@@ -85,6 +84,16 @@ def _load_plan(path: str) -> dict[str, Any]:
                 errors.append(f"coverage track {track_id!r} needs mature_minimum_tasks >= 1")
     forms = plan.get("authoring_form_targets")
     _error(errors, isinstance(forms, list) and len(forms) >= 8 and all(isinstance(item, str) and item for item in forms), "authoring_form_targets must have at least eight named forms")
+    for field, minimum_count in (("required_response_depths", 2), ("required_difficulties", 3)):
+        values = plan.get(field)
+        _error(
+            errors,
+            isinstance(values, list)
+            and len(values) >= minimum_count
+            and all(isinstance(item, str) and item for item in values)
+            and len(set(values)) == len(values),
+            f"{field} must have at least {minimum_count} unique non-empty values",
+        )
     if errors:
         raise ValueError("Evaluation coverage plan is invalid:\n- " + "\n- ".join(errors))
     return plan
@@ -95,7 +104,14 @@ def audit(plan: dict[str, Any], tasks: list[dict[str, Any]], *, suite_path: str)
     task_ids = [str(task["id"]) for task in tasks]
     categories = Counter(str(task.get("category", "unclassified")) for task in tasks)
     difficulties = Counter(str(task.get("difficulty", "unclassified")) for task in tasks)
+    task_forms = Counter(str(task.get("task_form", "unclassified")) for task in tasks)
+    response_depths = Counter(str(task.get("response_depth", "unclassified")) for task in tasks)
     tags = Counter(str(tag) for task in tasks for tag in task.get("tags", []) if isinstance(tag, str))
+    tasks_missing_taxonomy_metadata = sorted(
+        str(task.get("id", "<missing-id>"))
+        for task in tasks
+        if not all(isinstance(task.get(field), str) and task[field].strip() for field in ("task_form", "response_depth", "difficulty"))
+    )
     tracks: list[dict[str, Any]] = []
     for track in plan["coverage_tracks"]:
         matching_ids = sorted(
@@ -119,7 +135,19 @@ def audit(plan: dict[str, Any], tasks: list[dict[str, Any]], *, suite_path: str)
     current_floor = int(plan["current_suite_floor"])
     mature = plan["mature_suite_target"]
     mature_minimum = int(mature["minimum_tasks"])
-    plan_status = "mature_target_reached" if len(tasks) >= mature_minimum and all(item["mature_target_reached"] for item in tracks) else "expansion_in_progress"
+    missing_authoring_forms = sorted(set(plan["authoring_form_targets"]) - set(task_forms))
+    missing_response_depths = sorted(set(plan["required_response_depths"]) - set(response_depths))
+    missing_difficulties = sorted(set(plan["required_difficulties"]) - set(difficulties))
+    plan_status = (
+        "mature_target_reached"
+        if len(tasks) >= mature_minimum
+        and all(item["mature_target_reached"] for item in tracks)
+        and not missing_authoring_forms
+        and not missing_response_depths
+        and not missing_difficulties
+        and not tasks_missing_taxonomy_metadata
+        else "expansion_in_progress"
+    )
     return {
         "stage": "evaluation_suite_audit",
         "created_at": utc_now(),
@@ -135,6 +163,14 @@ def audit(plan: dict[str, Any], tasks: list[dict[str, Any]], *, suite_path: str)
         "remaining_to_mature_minimum": max(0, mature_minimum - len(tasks)),
         "category_counts": dict(sorted(categories.items())),
         "difficulty_counts": dict(sorted(difficulties.items())),
+        "task_form_counts": dict(sorted(task_forms.items())),
+        "response_depth_counts": dict(sorted(response_depths.items())),
+        "required_response_depths": plan["required_response_depths"],
+        "required_difficulties": plan["required_difficulties"],
+        "missing_authoring_forms": missing_authoring_forms,
+        "missing_response_depths": missing_response_depths,
+        "missing_difficulties": missing_difficulties,
+        "tasks_missing_taxonomy_metadata": tasks_missing_taxonomy_metadata,
         "tag_counts": dict(sorted(tags.items())),
         "coverage_tracks": tracks,
         "missing_mature_tracks": [item["id"] for item in tracks if not item["mature_target_reached"]],

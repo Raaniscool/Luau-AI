@@ -11,9 +11,10 @@ names are technical provenance, not the public identity of a completed model.
 
 - Storage rules that keep model weights, checkpoints, bulk generated data, local reports,
   and local Ollama artifacts out of Git by default.
-- An 80-item broad, project-authored Roblox/Luau source-brief catalog and a separate 24-item
-  held-out evaluation suite, plus an audited expansion plan toward a mature 100–300-test suite
-  that intentionally does not pretend the target is already met.
+- An 80-item broad, project-authored Roblox/Luau source-brief catalog and a separate 100-task
+  permanently held-out evaluation suite. Its strict audit verifies the mature 100-task floor,
+  coverage tracks, task forms, short/deep depth, and difficulty taxonomy; this is not a model
+  score, baseline capture, training result, or release claim.
 - A 51-item DukeOTR Phase-1 Luau-fundamentals source-brief catalog plus a static curriculum
   audit covering required concepts, instructional modes, difficulty range, schema validity,
   duplicate prompts, and held-out prompt collisions.
@@ -34,9 +35,11 @@ names are technical provenance, not the public identity of a completed model.
 - Planned identity/version configuration for `dukeotr_dataset_v1`, `dukeotr_v1`, versioned
   candidate tag `dukeotr-v1`, and stable release alias `dukeotr`; all remain explicitly
   planned.
-- A bounded Builder → Reviewer → Fixer trace runner with a configurable multi-round limit,
-  structured correctness/security/API/requirements/English/code-quality findings, source-attributed
-  Code Book context, evaluation-wording isolation, and explicit no-auto-promotion policy.
+- A bounded adaptive Builder → Reviewer → Fixer trace runner with deterministic conservative
+  simple/normal/complex routing, task-appropriate tester/reviewer scopes, early stopping after
+  configured passing checks, bounded deeper high-risk repair/retest cycles, structured
+  correctness/security/API/requirements/English/code-quality findings, source-attributed Code
+  Book context, evaluation-wording isolation, and explicit no-auto-promotion policy.
 - A future-training handoff contract: versioned final datasets carry file hashes, an ignored
   transfer bundle can preserve data/config/provenance outside Git, and the guarded trainer
   rechecks its final-data manifest before real execution.

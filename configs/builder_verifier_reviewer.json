@@ -1,19 +1,152 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "project_name": "DukeOTR",
-  "status": "implemented_trace_orchestrator_no_auto_promotion",
+  "status": "implemented_adaptive_trace_orchestrator_no_auto_promotion",
   "roles": {
     "builder": {
-      "input": ["user_request", "constraints", "prior_feedback", "source_attributed_code_book_context"],
-      "output": ["assistant_response", "assumptions", "security_notes", "test_plan", "code_book_card_ids"]
+      "input": [
+        "user_request",
+        "constraints",
+        "prior_feedback",
+        "source_attributed_code_book_context"
+      ],
+      "output": [
+        "assistant_response",
+        "assumptions",
+        "security_notes",
+        "test_plan",
+        "code_book_card_ids"
+      ]
     },
     "reviewer": {
-      "input": ["user_request", "builder_solution", "static_findings", "source_attributed_code_book_context"],
-      "output": ["dimension_scores", "structured_findings", "api_claims_to_verify", "summary", "decision"]
+      "input": [
+        "user_request",
+        "builder_solution",
+        "task_appropriate_tester_findings",
+        "source_attributed_code_book_context"
+      ],
+      "output": [
+        "dimension_scores",
+        "structured_findings",
+        "api_claims_to_verify",
+        "summary",
+        "decision"
+      ]
     },
     "fixer": {
-      "input": ["user_request", "builder_solution", "reviewer_report", "static_findings", "source_attributed_code_book_context"],
-      "output": ["revised_solution", "changes_made", "remaining_assumptions", "unresolved_risks", "addressed_finding_ids"]
+      "input": [
+        "user_request",
+        "builder_solution",
+        "reviewer_report",
+        "tester_findings",
+        "source_attributed_code_book_context"
+      ],
+      "output": [
+        "revised_solution",
+        "changes_made",
+        "remaining_assumptions",
+        "unresolved_risks",
+        "addressed_finding_ids"
+      ]
+    }
+  },
+  "adaptive_routing": {
+    "enabled": true,
+    "classification_policy": "deterministic_conservative_escalation",
+    "simple_task_types": [
+      "question_answer",
+      "code_explanation"
+    ],
+    "simple_max_requirements": 2,
+    "simple_max_prompt_characters": 280,
+    "complex_requirement_count": 5,
+    "ambiguity_terms": [
+      "ambiguous",
+      "unspecified",
+      "not sure",
+      "unclear",
+      "it depends",
+      "unknown requirement"
+    ],
+    "high_risk_terms": {
+      "client_server_security": [
+        "remoteevent",
+        "remotefunction",
+        "fireserver",
+        "fireclient",
+        "onserverevent",
+        "onserverinvoke",
+        "client/server",
+        "client server",
+        "replication",
+        "server authority",
+        "exploit",
+        "security",
+        "authorization",
+        "authenticate",
+        "untrusted client",
+        "networking",
+        "network"
+      ],
+      "persistence_economy": [
+        "datastore",
+        "data store",
+        "currency",
+        "purchase",
+        "receipt",
+        "marketplace",
+        "inventory",
+        "shop",
+        "gamepass",
+        "developer product"
+      ],
+      "spatial_combat": [
+        "combat",
+        "damage",
+        "raycast",
+        "raycasting",
+        "physics",
+        "network ownership",
+        "hit detection"
+      ],
+      "architecture_lifecycle": [
+        "architecture",
+        "matchmaking",
+        "large system",
+        "multi-server",
+        "streaming",
+        "race condition",
+        "memory leak",
+        "lifecycle",
+        "concurrency",
+        "complex system",
+        "complex debugging",
+        "deep debugging",
+        "subtle bug"
+      ]
+    },
+    "profiles": {
+      "simple": {
+        "reviewer_passes": 0,
+        "default_max_rounds": 1,
+        "maximum_rounds": 1,
+        "minimum_assistant_characters": 24,
+        "code_book_context_limit": 0
+      },
+      "normal": {
+        "reviewer_passes": 1,
+        "default_max_rounds": 2,
+        "maximum_rounds": 2,
+        "minimum_assistant_characters": 160,
+        "code_book_context_limit": 4
+      },
+      "complex": {
+        "reviewer_passes": 2,
+        "default_max_rounds": 3,
+        "maximum_rounds": 4,
+        "minimum_assistant_characters": 220,
+        "code_book_context_limit": 6
+      }
     }
   },
   "orchestrator": {
@@ -64,6 +197,8 @@
     "The server remains authoritative for rewards, currencies, inventory, and combat outcomes.",
     "A LocalScript can call RemoteEvent:FireServer; remotes do not automatically validate or authorize client input.",
     "Untrusted client input is validated, rate-limited where relevant, and never treated as proof of ownership.",
+    "Routing is deterministic and conservative: ambiguity, security, networking, persistence, spatial-combat, advanced, and high-requirement tasks never take the simple fast path.",
+    "Only task-appropriate checks are requested; simple low-risk requests can stop after their configured deterministic checks, while complex requests receive deeper tester/reviewer passes.",
     "Each role emits machine-readable JSON alongside human-readable rationale.",
     "The trace stores concrete correctness, security, API, requirement, English, and code-quality findings rather than a bare pass/fail label.",
     "An accepted trace is not automatically promoted to candidate, final training, adapter, or model artifacts.",

@@ -37,6 +37,7 @@ from scripts.lib.builder_reviewer_fixer import (
 )
 from scripts.lib.code_book import context_view, load_cards, search_cards
 from scripts.lib.dedupe import cross_split_prompt_collisions
+from scripts.lib.effort_routing import EffortRoute, classify_task
 from scripts.lib.io_utils import (
     read_json,
     read_jsonl,
@@ -50,8 +51,16 @@ from scripts.lib.quality import static_validate
 from scripts.lib.schema import clone_for_correction, make_generated_record, validate_seed
 
 
-_TRACE_SCHEMA_VERSION = "1.0"
+_TRACE_SCHEMA_VERSION = "1.1"
 _DEFAULT_OUTPUT = "reports/builder_reviewer_fixer.trace.json"
+
+
+class ReviewerPassError(RuntimeError):
+    """Preserves completed reviewer-pass diagnostics when a later pass fails."""
+
+    def __init__(self, message: str, pass_traces: list[dict[str, Any]]) -> None:
+        super().__init__(message)
+        self.pass_traces = pass_traces
 
 
 def parser() -> argparse.ArgumentParser:
@@ -101,8 +110,10 @@ def _load_train_seed(path: str, seed_id: str) -> dict[str, Any]:
 
 
 def _code_book_context(seed: dict[str, Any], path: str, limit: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    if limit < 1:
-        raise ValueError("Code Book context limit must be at least one")
+    if limit < 0:
+        raise ValueError("Code Book context limit must be zero or positive")
+    if limit == 0:
+        return [], []
     cards = load_cards(path)
     query = " ".join(
         [
@@ -190,14 +201,19 @@ def _minimums(config: dict[str, Any]) -> dict[str, int]:
     return result
 
 
-def _resolve_max_rounds(arguments: argparse.Namespace, config: dict[str, Any]) -> int:
+def _resolve_max_rounds(arguments: argparse.Namespace, config: dict[str, Any], route: EffortRoute) -> int:
+    """Bound explicit overrides by both the global and task-appropriate route caps."""
     orchestrator = config.get("orchestrator", {})
     if not isinstance(orchestrator, dict):
         raise ValueError("orchestrator configuration must be an object")
-    value = arguments.max_rounds if arguments.max_rounds is not None else orchestrator.get("default_max_rounds", 2)
-    cap = orchestrator.get("maximum_max_rounds", 4)
+    global_cap = orchestrator.get("maximum_max_rounds", 4)
+    cap = min(route.maximum_rounds, global_cap) if isinstance(global_cap, int) else 0
+    value = arguments.max_rounds if arguments.max_rounds is not None else route.default_max_rounds
     if not isinstance(value, int) or not isinstance(cap, int) or value < 1 or cap < 1 or value > cap:
-        raise ValueError(f"max rounds must be an integer from 1 to configured cap {cap}")
+        raise ValueError(
+            f"max rounds for the {route.level} route must be an integer from 1 to {cap}; "
+            "choose a higher-risk route only when the task actually warrants it"
+        )
     return value
 
 
@@ -239,12 +255,20 @@ def _failure_reasons(static: dict[str, Any], review: dict[str, Any] | None) -> l
             if isinstance(item, dict):
                 reasons.append({"stage": "reviewer", **item})
         for item in review.get("policy_forced_reasons", []):
-            is_api_reason = "api" in str(item)
+            rendered = str(item)
+            category = next(
+                (
+                    candidate
+                    for candidate in ("api", "security", "correctness", "requirements", "english", "code_quality")
+                    if candidate in rendered
+                ),
+                "requirements",
+            )
             reasons.append(
                 {
                     "stage": "review_policy",
-                    "id": str(item),
-                    "category": "api" if is_api_reason else "requirements",
+                    "id": rendered,
+                    "category": category,
                     "severity": "major",
                     "message": "The reviewer acceptance did not satisfy the configured API or dimension policy.",
                     "evidence": None,
@@ -276,6 +300,124 @@ def _error_audit(response: Any | None, error: Exception) -> dict[str, Any]:
     return result
 
 
+def _task_appropriate_tester(record: dict[str, Any], route: EffortRoute) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run the existing deterministic validator with the route's relevant effort budget.
+
+    Static validation remains a safety floor; the routing record explains which semantic checks
+    are requested from a reviewer and which irrelevant expensive scopes are skipped.
+    """
+    static = static_validate(record, minimum_assistant_characters=route.minimum_assistant_characters)
+    tester = {
+        "status": "pass" if static.get("status") == "pass" else "fail",
+        "kind": "deterministic_task_appropriate_tester",
+        "selected_checks": list(route.selected_checks),
+        "skipped_checks": list(route.skipped_checks),
+        "minimum_assistant_characters": route.minimum_assistant_characters,
+        "static_checker": static.get("checker"),
+        "issue_count": len(static.get("issues", [])),
+    }
+    return static, tester
+
+
+def _aggregate_reviews(reviews: list[dict[str, Any]]) -> dict[str, Any]:
+    """Combine independent reviewer passes conservatively for one candidate round."""
+    if not reviews:
+        raise ValueError("Cannot aggregate zero reviewer passes")
+    findings: list[dict[str, Any]] = []
+    api_claims: list[str] = []
+    policy_reasons: list[str] = []
+    scores: dict[str, int] = {}
+    decisions: list[str] = []
+    summaries: list[str] = []
+    for index, review in enumerate(reviews, start=1):
+        decisions.append(str(review["decision"]))
+        summaries.append(str(review["summary"]))
+        for key, score in review["dimension_scores"].items():
+            scores[key] = min(scores.get(key, score), score)
+        for finding in review.get("findings", []):
+            clone = dict(finding)
+            # Preserve established finding IDs on the standard one-pass route; deeper routes
+            # namespace IDs so Fixer acknowledgement remains unambiguous across passes.
+            if len(reviews) > 1:
+                clone["id"] = f"r{index}-{clone['id']}"
+            findings.append(clone)
+        for claim in review.get("api_claims_to_verify", []):
+            if claim not in api_claims:
+                api_claims.append(claim)
+        policy_reasons.extend(f"r{index}:{reason}" for reason in review.get("policy_forced_reasons", []))
+    if "reject" in decisions:
+        decision = "reject"
+    elif "revise" in decisions:
+        decision = "revise"
+    else:
+        decision = "accept"
+    return {
+        "reported_decisions": decisions,
+        "decision": decision,
+        "dimension_scores": scores,
+        "findings": findings,
+        "api_claims_to_verify": api_claims,
+        "summary": "\n".join(f"Pass {index}: {summary}" for index, summary in enumerate(summaries, start=1)),
+        "policy_forced_reasons": policy_reasons,
+    }
+
+
+def _review_candidate(
+    *,
+    seed: dict[str, Any],
+    candidate_answer: str,
+    static_issues: list[dict[str, Any]],
+    code_book_context: list[dict[str, Any]],
+    route: EffortRoute,
+    client: OllamaClient,
+    model: str,
+    options: dict[str, Any],
+    minimums: dict[str, int],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run the route's reviewer depth and retain each response in the trace."""
+    complete_reviews: list[dict[str, Any]] = []
+    pass_traces: list[dict[str, Any]] = []
+    for review_pass in range(1, route.reviewer_passes + 1):
+        response = None
+        try:
+            response = client.generate(
+                model=model,
+                system=REVIEWER_SYSTEM,
+                prompt=reviewer_prompt(
+                    seed,
+                    candidate_answer,
+                    static_issues,
+                    code_book_context,
+                    selected_checks=list(route.selected_checks),
+                    review_pass=review_pass,
+                    total_review_passes=route.reviewer_passes,
+                ),
+                options=options,
+                think=False,
+                response_format=REVIEWER_RESPONSE_SCHEMA,
+            )
+            review = parse_reviewer(response.content, minimums=minimums)
+            complete_reviews.append(review)
+            pass_traces.append({"pass": review_pass, "status": "complete", **review, **_response_audit(response)})
+            # A hard rejection has already established the terminal policy; further expensive
+            # passes cannot make it acceptable and are intentionally skipped.
+            if review["decision"] == "reject":
+                break
+        except (OllamaError, ValueError) as exc:
+            pass_traces.append({"pass": review_pass, **_error_audit(response, exc)})
+            raise ReviewerPassError(str(exc), pass_traces) from exc
+    aggregate = _aggregate_reviews(complete_reviews)
+    return aggregate, {
+        "status": "complete",
+        "requested_passes": route.reviewer_passes,
+        "completed_passes": len(complete_reviews),
+        "selected_checks": list(route.selected_checks),
+        "skipped_checks": list(route.skipped_checks),
+        "passes": pass_traces,
+        **aggregate,
+    }
+
+
 def _candidate(seed: dict[str, Any], answer: str, *, model: str, options: dict[str, Any], round_number: int) -> dict[str, Any]:
     record = make_generated_record(
         seed,
@@ -304,6 +446,7 @@ def _base_trace(
     code_book_path: str,
     code_book_provenance: list[dict[str, Any]],
     isolation: dict[str, Any],
+    route: EffortRoute,
     max_rounds: int,
     role_models: dict[str, str],
 ) -> dict[str, Any]:
@@ -327,6 +470,7 @@ def _base_trace(
             "max_rounds": max_rounds,
             "role_models": role_models,
         },
+        "routing": route.as_dict(),
         "code_book": {
             "file": code_book_path,
             "sha256": _safe_file_hash(code_book_path),
@@ -359,12 +503,14 @@ def run(arguments: argparse.Namespace) -> int:
         raise ValueError("Builder → Reviewer → Fixer config must identify project_name DukeOTR")
     pipeline_config = read_json(arguments.pipeline_config)
     seed = _load_train_seed(arguments.seeds, arguments.seed_id)
-    max_rounds = _resolve_max_rounds(arguments, config)
+    route = classify_task(seed, config)
+    max_rounds = _resolve_max_rounds(arguments, config, route)
     orchestrator = config.get("orchestrator", {})
-    context_limit = orchestrator.get("code_book_context_limit", 4)
-    if not isinstance(context_limit, int):
-        raise ValueError("orchestrator.code_book_context_limit must be an integer")
-    code_book_context, code_book_provenance = _code_book_context(seed, arguments.code_book, context_limit)
+    if not isinstance(orchestrator, dict):
+        raise ValueError("orchestrator configuration must be an object")
+    code_book_context, code_book_provenance = _code_book_context(
+        seed, arguments.code_book, route.code_book_context_limit
+    )
     cross_threshold = float(pipeline_config.get("deduplication", {}).get("cross_split_prompt_threshold", 0.93))
     isolation = _isolation_report(seed, arguments.evaluation, cross_threshold)
     role_models = _role_models(arguments, config, pipeline_config)
@@ -376,6 +522,7 @@ def run(arguments: argparse.Namespace) -> int:
         code_book_path=arguments.code_book,
         code_book_provenance=code_book_provenance,
         isolation=isolation,
+        route=route,
         max_rounds=max_rounds,
         role_models=role_models,
     )
@@ -388,11 +535,19 @@ def run(arguments: argparse.Namespace) -> int:
 
     if arguments.dry_run:
         trace["status"] = "planned_no_inference"
+        planned_roles = ["builder", "task_appropriate_tester"]
+        planned_roles.extend(f"reviewer_pass_{index}" for index in range(1, route.reviewer_passes + 1))
         trace["planned_rounds"] = [
             {
                 "round": 1,
-                "roles": ["builder", "static_validation", "reviewer"],
-                "conditional_next_step": "fixer then another independent review only if revise and a round remains",
+                "roles": planned_roles,
+                "selected_checks": list(route.selected_checks),
+                "skipped_checks": list(route.skipped_checks),
+                "conditional_next_step": (
+                    "accept immediately after the configured checks pass"
+                    if max_rounds == 1
+                    else "fixer then re-tester/reviewer only if the configured checks request revision and a round remains"
+                ),
             }
         ]
         trace["terminal_reason"] = "Dry run: no Ollama preflight, inference, candidate generation, or promotion occurred."
@@ -407,9 +562,17 @@ def run(arguments: argparse.Namespace) -> int:
         raise ValueError("orchestrator review_static_failures and repair_rejections must be booleans")
     client = OllamaClient(arguments.host)
     # This invokes the exact local registration preflight (including `ollama list` for a local
-    # host) and never downloads or changes a model.
-    for model in sorted(set(role_models.values())):
-        client.assert_model_present(model)
+    # host) and never downloads or changes a model. Delay a distinct Fixer model's preflight
+    # until a repair is actually needed, so an early-pass response does not touch that role.
+    preflighted_models: set[str] = set()
+
+    def ensure_model_preflight(role: str) -> None:
+        model = role_models[role]
+        if model not in preflighted_models:
+            client.assert_model_present(model)
+            preflighted_models.add(model)
+
+    ensure_model_preflight("builder")
 
     builder_options = _role_options(config, "builder")
     reviewer_options = _role_options(config, "reviewer")
@@ -453,25 +616,33 @@ def run(arguments: argparse.Namespace) -> int:
                 raise RuntimeError("Internal error: fixer round has no prior candidate")
 
         assert current_record is not None and current_answer is not None
-        static = static_validate(current_record)
+        static, tester = _task_appropriate_tester(current_record, route)
         round_trace["static_validation"] = static
-        should_review = review_static_failures or static.get("status") == "pass"
+        round_trace["tester"] = tester
+        should_review = route.reviewer_passes > 0 and (review_static_failures or static.get("status") == "pass")
         review: dict[str, Any] | None = None
         if should_review:
-            response = None
             try:
-                response = client.generate(
+                ensure_model_preflight("reviewer")
+                review, reviewer_trace = _review_candidate(
+                    seed=seed,
+                    candidate_answer=current_answer,
+                    static_issues=list(static.get("issues", [])),
+                    code_book_context=code_book_context,
+                    route=route,
+                    client=client,
                     model=role_models["reviewer"],
-                    system=REVIEWER_SYSTEM,
-                    prompt=reviewer_prompt(seed, current_answer, list(static.get("issues", [])), code_book_context),
                     options=reviewer_options,
-                    think=False,
-                    response_format=REVIEWER_RESPONSE_SCHEMA,
+                    minimums=minimums,
                 )
-                review = parse_reviewer(response.content, minimums=minimums)
-                round_trace["reviewer"] = {"status": "complete", **review, **_response_audit(response)}
-            except (OllamaError, ValueError) as exc:
-                round_trace["reviewer"] = _error_audit(response, exc)
+                round_trace["reviewer"] = reviewer_trace
+            except (ReviewerPassError, OllamaError) as exc:
+                round_trace["reviewer"] = {
+                    "status": "error",
+                    "requested_passes": route.reviewer_passes,
+                    "passes": getattr(exc, "pass_traces", []),
+                    "error": str(exc),
+                }
                 round_trace["failure_reasons"] = _failure_reasons(static, None)
                 trace["rounds"].append(round_trace)
                 trace["status"] = "error"
@@ -480,12 +651,14 @@ def run(arguments: argparse.Namespace) -> int:
                 print(f"Reviewer failed; trace written to {output}", file=sys.stderr)
                 return 2
         else:
-            round_trace["reviewer"] = {
-                "status": "skipped",
-                "reason": "Configured not to review a static-failing candidate; record remains ineligible.",
-            }
+            reason = (
+                "The simple route requires no model reviewer after its task-appropriate deterministic tester passes."
+                if route.reviewer_passes == 0 and static.get("status") == "pass"
+                else "Configured route does not review a static-failing candidate; record remains ineligible."
+            )
+            round_trace["reviewer"] = {"status": "skipped", "reason": reason}
 
-        decision = review["decision"] if review else "revise"
+        decision = review["decision"] if review else ("accept" if static.get("status") == "pass" and route.reviewer_passes == 0 else "revise")
         policy_overrides: list[str] = []
         if static.get("status") != "pass" and decision == "accept":
             decision = "revise"
@@ -495,11 +668,15 @@ def run(arguments: argparse.Namespace) -> int:
         round_trace["failure_reasons"] = _failure_reasons(static, review)
 
         if decision == "accept" and static.get("status") == "pass":
+            round_trace["early_pass"] = True
+            round_trace["early_pass_reason"] = (
+                "The Builder response met the route's configured task-appropriate checks; no Fixer or additional round was invoked."
+            )
             trace["rounds"].append(round_trace)
             trace["status"] = "accepted_for_manual_review_only"
             trace["terminal_reason"] = (
-                "Builder/Reviewer/Fixer loop accepted the candidate, but trace output remains non-promoting and requires "
-                "independent pipeline gates before any dataset decision."
+                "The Builder response passed its configured task-appropriate tester/reviewer checks, so the loop stopped early. "
+                "The trace remains non-promoting and requires independent pipeline gates before any dataset decision."
             )
             trace["final_candidate"] = current_record
             _write(trace, str(output))
@@ -526,10 +703,18 @@ def run(arguments: argparse.Namespace) -> int:
 
         response = None
         try:
+            ensure_model_preflight("fixer")
             response = client.generate(
                 model=role_models["fixer"],
                 system=FIXER_SYSTEM,
-                prompt=fixer_prompt(seed, current_answer, review or {}, list(static.get("issues", [])), code_book_context),
+                prompt=fixer_prompt(
+                    seed,
+                    current_answer,
+                    review or {},
+                    list(static.get("issues", [])),
+                    code_book_context,
+                    selected_checks=list(route.selected_checks),
+                ),
                 options=fixer_options,
                 think=False,
                 response_format=FIXER_RESPONSE_SCHEMA,

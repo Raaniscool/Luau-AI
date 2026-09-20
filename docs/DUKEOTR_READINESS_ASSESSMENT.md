@@ -13,18 +13,20 @@ training report and does not claim a DukeOTR model, adapter, dataset version, or
 | Code Book | 25 source-checked, source-attributed cards; a strict audit verifies schema, source hosts, a 25-card floor, and a granular requested-concept matrix. | Human Studio verification of every card, exhaustive API coverage, or training-data eligibility. |
 | Candidate source briefs | 51 dedicated Phase-1 Luau briefs and 80 broader project-authored briefs (131 total), with curriculum/catalog/portfolio audits and explicitly varied task forms. | A large, diverse, quality-gated candidate corpus; briefs are specifications, not examples. |
 | Quality pipeline | Generation, static validation, structured review, correction, revalidation, deduplication, split-isolation, final-dataset build, manifests, and transfer-bundle scripts. | That a final quality-gated `dukeotr_dataset_v1` has been built. |
-| Builder → Reviewer → Fixer | Configurable bounded trace runner with structured failure categories, deterministic findings, round provenance, Code Book context, and no-auto-promotion policy. | That any trace output is approved for SFT, or that a model loop replaces human review. |
-| Held-out evaluation | 24 rubric-driven held-out tasks, deterministic RemoteEvent regression guards, baseline/evaluation/score/compare workflow, and a 100–300-task expansion plan/audit. | A mature 100–300-task suite, complete baseline capture, or an improvement claim. |
+| Builder → Reviewer → Fixer | Deterministic conservative simple/normal/complex routing, task-appropriate tester/reviewer scopes, early-pass stopping, bounded deeper repair/retest rounds, provenance, Code Book context, and no-auto-promotion policy. | That any trace output is approved for SFT, that a configured pass is best possible, or that a model loop replaces human review. |
+| Held-out evaluation | 100 permanently held-out rubric-driven tasks, deterministic RemoteEvent regression guards, baseline/evaluation/score/compare workflow, and a strict mature-floor/coverage audit. | Complete baseline capture, any new model score, an improvement claim, or a release decision. |
 | Training handoff | Future-CUDA configs, hardware preflight, hash-verified final-data bundle, guarded QLoRA training script, adapter/export plan, and runbook. | A compatible adapter, GPU training run, or Ollama import. |
 
 ## What this change adds
 
-1. **A real bounded quality-loop contract.** `scripts/run_builder_reviewer_fixer.py` runs a
-   selected project-authored `train` brief through Builder → static validation → Reviewer →
-   Fixer → revalidation/review. It records concrete correctness, security, API, requirement,
-   English, code-quality, style, testability, and Code Book findings. It supports up to four
-   configured candidate rounds, keeps the old answer as a parent, and never writes a final
-   training dataset.
+1. **A real bounded adaptive quality-loop contract.** `scripts/run_builder_reviewer_fixer.py`
+   deterministically routes a selected project-authored `train` brief before Builder work:
+   narrow low-risk tasks use a minimal tester path, normal Luau/API tasks use standard review,
+   and ambiguous/high-risk tasks use deeper bounded checks and repair/retest rounds. It records
+   concrete correctness, security, API, requirement, English, code-quality, style, testability,
+   and Code Book findings where relevant. A configured passing response stops early without a
+   default Fixer call; it is never called best possible, never becomes a final training dataset,
+   and keeps prior answers as correction parents.
 2. **Evaluation isolation at the role boundary.** The quality loop performs a local
    wording-level collision check before inference. Evaluation prompt/rubric/answer text is
    never passed to a Builder, Reviewer, or Fixer. A collision blocks the trace.
@@ -38,15 +40,16 @@ training report and does not claim a DukeOTR model, adapter, dataset version, or
    runtime reasoning, diagnosis/correction, API-misuse diagnosis, and insecurity analysis.
    `audit_source_portfolio.py` ensures all requested task forms have evidence without claiming
    that a model has generated or approved examples.
-5. **A held-out-suite stewardship scaffold.** `evaluation_data/coverage_plan.json` and
-   `scripts/audit_evaluation_suite.py` make the 24-task foundation and 100–300-task target
-   measurable without fabricating shallow tasks or leaking hidden evaluation content.
+5. **A mature held-out-suite stewardship audit.** `evaluation_data/coverage_plan.json` and
+   `scripts/audit_evaluation_suite.py` now verify 100 independently authored tasks, coverage
+   floors, task forms, short/deep depth, and difficulty taxonomy without fabricating a model
+   score or leaking hidden evaluation content.
 
 ## Deliberate gaps before summer GPU access
 
 ### 1. Curated source breadth and corpus scale
 
-The 115 tracked source briefs are a useful base, but they are not the requested large,
+The 131 tracked source briefs are a useful base, but they are not the requested large,
 diverse candidate corpus. Expand by documented gaps, learner level, task form, game context,
 and failure mode—not synonym swaps. Keep natural English quality and code/API review as first
 class gates. Use small inspected local inference pilots only; do not make slow laptop bulk
@@ -59,12 +62,14 @@ cards when a real gap appears (for example DataStore lifecycle, physics/network 
 or current API changes), then record named human verification for high-risk cards after
 checking current docs and Studio behavior. Do not auto-convert cards into SFT rows.
 
-### 3. Held-out evaluation authoring
+### 3. Held-out evaluation stewardship and baseline discipline
 
-The current 24 tests are well below the planned mature minimum of 100. Author the planned
-batches independently in `evaluation_data/`, using varied task forms and rubrics. Keep future
-prompt wording, expected answers, baseline answers, and score reports out of every source
-brief, Code Book role context, and training artifact.
+The independently authored 100-task suite reaches the current mature authoring floor, while
+the 100–300 stewardship range remains open for genuinely new coverage gaps. Preserve its
+permanent separation: prompt wording, rubrics, expected answers, baseline answers, and score
+reports stay out of every source brief, Code Book role context, and training artifact. The
+completed authoring audit is not baseline evidence; Windows-side model evaluation remains a
+separate deliberate activity.
 
 ### 4. Baseline completeness and comparison discipline
 
@@ -84,13 +89,13 @@ names advance beyond plans.
 
 1. Run the offline audits and inspect their reports:
    `audit_dukeotr_curriculum.py`, `audit_catalog.py`, `audit_code_book.py --strict`, and
-   `audit_evaluation_suite.py --strict`.
+   `audit_evaluation_suite.py --strict --require-mature-target`.
 2. Use `run_builder_reviewer_fixer.py --dry-run` to inspect trace planning. On the Windows
    machine, run only a few manually inspected `qwen3:4b` quality-loop pilots after `ollama
    list` confirms the existing tag.
 3. Convert observed reviewer/static failure patterns into narrowly authored source briefs,
    Code Book revisions, and deterministic checks where appropriate.
-4. Author the next permanently held-out evaluation batch before expanding candidate volume.
+4. Add a permanently held-out task only for a documented new coverage gap; do not dilute the suite with superficial variants.
 5. Build a final dataset only after all documented gates are met, then package it with its
    manifest for a suitable future CUDA/cloud host.
 

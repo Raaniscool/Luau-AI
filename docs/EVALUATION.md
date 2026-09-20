@@ -23,7 +23,7 @@ The first task is exactly:
 
 > Explain what a RemoteEvent is in Roblox and show a secure example.
 
-For an incremental proof before the full 24-task capture, run this only **when no raw POC
+For an incremental proof before a full 100-task capture, run this only **when no raw POC
 answer has been captured yet**:
 
 ```powershell
@@ -46,36 +46,37 @@ The baseline runner cannot prove a user-created tag was unmodified. Use the down
 
 ## Held-out suite
 
-`evaluation_data/roblox_luau_eval.jsonl` contains 24 rubric-driven tasks spanning:
+`evaluation_data/roblox_luau_eval.jsonl` contains 100 permanently held-out, rubric-driven tasks spanning:
 
 - RemoteEvents, RemoteFunctions, secure shop/currency flows, and Instance validation;
 - client/server combat, tools, UI inputs, leaderstats, rounds, and matchmaking;
 - DataStore failure safety, gamepasses, developer product receipts, and architecture;
 - Luau tables, modules/OOP cleanup, NPC pathfinding, debugging, and performance; and
-- advanced streaming and future Builder/Reviewer/Fixer design.
+- advanced streaming, client/server authority, adversarial false-premise handling, and future Builder/Reviewer/Fixer design; and
+- beginner, intermediate, and advanced difficulty across short-answer and deep-reasoning task forms.
 
 It is a tracked, project-authored benchmark. Its prompts/rubrics are intentionally never
 loaded by `generate_examples.py` or `train_qlora.py`.
 
-## Expansion stewardship
+## Suite stewardship
 
-The current 24 tasks are a foundation, not the requested mature suite. The permanently
-held-out `evaluation_data/coverage_plan.json` tracks the authoring path toward **100–300**
-carefully authored tests across Luau fundamentals, Roblox APIs/lifecycle, client-server
-security, persistence/economy, systems/architecture, and debugging/performance. It deliberately
-contains no future prompt wording, rubrics, expected answers, model outputs, or score reports.
+The permanently held-out `evaluation_data/coverage_plan.json` records that the **100-task**
+mature-suite floor and all configured coverage tracks are now authoring-complete. It preserves
+the 100–300 stewardship range across Luau fundamentals, Roblox APIs/lifecycle, client-server
+security, persistence/economy, systems/architecture, and debugging/performance. This is an
+inventory/audit fact only: it is **not** a baseline capture, model run, score, comparison,
+training result, or release claim. The plan deliberately contains no model outputs or score
+reports.
 
 ```powershell
-# Validates the current held-out suite and reports coverage without claiming maturity.
-python .\scripts\audit_evaluation_suite.py --strict
-
-# Future release gate only: intentionally fails while fewer than 100 tasks or coverage floors exist.
-python .\scripts\audit_evaluation_suite.py --require-mature-target
+# Validates coverage, task forms, depth/difficulty taxonomy, and permanent isolation.
+# It does not run or score a model.
+python .\scripts\audit_evaluation_suite.py --strict --require-mature-target
 ```
 
-Each future task must be independently authored and rubric-driven, then remain in
-`evaluation_data/` only. Do not convert the coverage plan, prompts, rubrics, baseline outputs,
-or audit reports into generation context or training data.
+Each task remains independently authored, rubric-driven, and retained in `evaluation_data/`
+only. Do not convert the coverage plan, prompts, rubrics, baseline outputs, or audit reports
+into generation context or training data.
 
 ## Score a run
 

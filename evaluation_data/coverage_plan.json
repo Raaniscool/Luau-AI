@@ -1,55 +1,95 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "project_name": "DukeOTR",
   "suite_file": "evaluation_data/roblox_luau_eval.jsonl",
   "suite_policy": "permanently_held_out_not_generation_or_training_input",
-  "current_suite_floor": 24,
+  "current_suite_floor": 100,
   "mature_suite_target": {
     "minimum_tasks": 100,
     "recommended_tasks": 160,
     "maximum_tasks": 300,
-    "status": "not_yet_reached"
+    "status": "authoring_target_reached_no_model_scores"
   },
   "coverage_tracks": [
     {
       "id": "luau_fundamentals",
       "description": "Syntax, scope, nil, control flow, functions, tables, strings/math/randomness, types, modules, errors, and runtime reasoning.",
-      "match_tags": ["luau", "tables", "modules", "natural-language"],
+      "match_tags": [
+        "luau",
+        "tables",
+        "modules",
+        "natural-language"
+      ],
       "mature_minimum_tasks": 16
     },
     {
       "id": "roblox_api_lifecycle",
       "description": "Instances, hierarchy, players/characters, UI/input, events, tools, physics, raycasting, services, and API-misuse diagnosis.",
-      "match_tags": ["instances", "players", "ui", "events", "tools", "pathfinding", "streaming"],
+      "match_tags": [
+        "instances",
+        "players",
+        "ui",
+        "events",
+        "tools",
+        "pathfinding",
+        "streaming"
+      ],
       "mature_minimum_tasks": 20
     },
     {
       "id": "client_server_security",
       "description": "RemoteEvents, RemoteFunctions, replication, server authority, validation, abuse resistance, and insecurity analysis.",
-      "match_tags": ["remoteevents", "remotefunctions", "client-server", "security", "remotes"],
+      "match_tags": [
+        "remoteevents",
+        "remotefunctions",
+        "client-server",
+        "security",
+        "remotes"
+      ],
       "mature_minimum_tasks": 25
     },
     {
       "id": "persistence_economy_monetization",
       "description": "DataStores, failure/retry behavior, inventories, currencies, shops, receipts, and passes.",
-      "match_tags": ["datastore", "persistence", "currency", "shops", "developer-products", "gamepasses", "marketplace"],
+      "match_tags": [
+        "datastore",
+        "persistence",
+        "currency",
+        "shops",
+        "developer-products",
+        "gamepasses",
+        "marketplace"
+      ],
       "mature_minimum_tasks": 15
     },
     {
       "id": "systems_architecture",
       "description": "Modules, NPCs, combat, rounds, matchmaking, requirements, architecture, and trade-off reasoning.",
-      "match_tags": ["architecture", "modules", "npcs", "combat", "rounds", "matchmaking"],
+      "match_tags": [
+        "architecture",
+        "modules",
+        "npcs",
+        "combat",
+        "rounds",
+        "matchmaking"
+      ],
       "mature_minimum_tasks": 15
     },
     {
       "id": "debugging_quality_performance",
       "description": "Output prediction, diagnosis, correction, review, refactor, connection lifetime, optimization, and performance reasoning.",
-      "match_tags": ["debugging", "optimization", "events", "memory"],
+      "match_tags": [
+        "debugging",
+        "optimization",
+        "events",
+        "memory"
+      ],
       "mature_minimum_tasks": 12
     }
   ],
   "authoring_form_targets": [
     "implementation",
+    "natural_language_to_luau",
     "explanation",
     "output_prediction",
     "diagnosis_correction",
@@ -70,32 +110,55 @@
   "planned_authoring_batches": [
     {
       "id": "eval_batch_01_luau_and_api",
-      "status": "planned_no_prompts_or_rubrics_added",
-      "target_new_tasks": 20,
-      "focus": ["luau_fundamentals", "roblox_api_lifecycle", "api_identification_or_misuse", "output_prediction"]
+      "status": "completed_2026_09_19",
+      "added_task_ids": "eval-luau-scope-nil-025 through eval-raycastparams-filter-052",
+      "actual_new_tasks": 28,
+      "focus": [
+        "luau_fundamentals",
+        "roblox_api_lifecycle",
+        "api_identification_or_misuse",
+        "output_prediction"
+      ]
     },
     {
       "id": "eval_batch_02_security_and_persistence",
-      "status": "planned_no_prompts_or_rubrics_added",
-      "target_new_tasks": 24,
-      "focus": ["client_server_security", "persistence_economy_monetization", "insecurity_analysis", "runtime_reasoning"]
+      "status": "completed_2026_09_19",
+      "added_task_ids": "eval-replication-client-edit-053 through eval-ordereddatastore-boundary-077",
+      "actual_new_tasks": 25,
+      "focus": [
+        "client_server_security",
+        "persistence_economy_monetization",
+        "insecurity_analysis",
+        "runtime_reasoning"
+      ]
     },
     {
       "id": "eval_batch_03_systems_and_quality",
-      "status": "planned_no_prompts_or_rubrics_added",
-      "target_new_tasks": 24,
-      "focus": ["systems_architecture", "debugging_quality_performance", "refactor", "comparison_tradeoff"]
-    },
-    {
-      "id": "eval_batch_04_adversarial_and_release",
-      "status": "planned_no_prompts_or_rubrics_added",
-      "target_new_tasks": 20,
-      "focus": ["subtle_bug_analysis", "bad_answer_critique", "completion", "security_review"]
+      "status": "completed_2026_09_19",
+      "added_task_ids": "eval-module-destroy-contract-078 through eval-deep-architecture-explanation-100",
+      "actual_new_tasks": 23,
+      "focus": [
+        "systems_architecture",
+        "debugging_quality_performance",
+        "refactor",
+        "comparison_tradeoff",
+        "adversarial_reasoning"
+      ]
     }
   ],
   "notes": [
-    "This is an authoring and coverage plan, not a benchmark score or a claim that the mature target has been reached.",
-    "Do not put future prompt wording, rubrics, expected answers, baseline answers, or score reports in raw_data, Code Book retrieval, generation prompts, or training artifacts.",
-    "Each future task must be independently authored, rubric-driven, source/provenance reviewed where factual APIs matter, and retained permanently in evaluation_data only."
+    "The permanently held-out authoring target of 100 tasks is reached. This records suite stewardship only, not a model score, benchmark result, training outcome, or release readiness decision.",
+    "Do not put task prompt wording, rubrics, expected answers, baseline answers, judge reports, or score reports in raw_data, Code Book retrieval, generation prompts, or training artifacts.",
+    "Each task is independently authored, rubric-driven, provenance reviewed where factual APIs matter, and retained permanently in evaluation_data only.",
+    "No DukeOTR or Qwen model was run or scored while expanding this suite."
+  ],
+  "required_response_depths": [
+    "short",
+    "deep"
+  ],
+  "required_difficulties": [
+    "beginner",
+    "intermediate",
+    "advanced"
   ]
 }

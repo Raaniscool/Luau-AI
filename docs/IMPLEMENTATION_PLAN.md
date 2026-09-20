@@ -3,8 +3,9 @@
 ## Repository assessment
 
 The existing repository was inspected before this staged expansion. It already contains a
-foundation pipeline, a combined 131-brief source portfolio (80 broad and 51 Phase-1), 24 held-out evaluation tasks, a
-25-card Code Book source-checked foundation with granular coverage auditing, adapter configurations,
+foundation pipeline, a combined 131-brief source portfolio (80 broad and 51 Phase-1), 100
+permanently held-out evaluation tasks, a 25-card Code Book source-checked foundation with
+granular coverage auditing, adapter configurations,
 and quality-gate tests. It does not contain a completed reviewed corpus, a trained adapter, or a
 measured DukeOTR model.
 
@@ -97,13 +98,16 @@ synthetic prompts.
 
 ### 6. Bounded Builder → Reviewer → Fixer quality loop
 
-`run_builder_reviewer_fixer.py` now supplies a deliberately bounded pilot for one isolated
-train brief. It records schema-validated Builder/Reviewer/Fixer roles, deterministic findings,
-structured correctness/security/API/requirements/English/code-quality failures, source-attributed
-Code Book context, provenance-preserving revisions, and a local held-out wording-isolation
-check. It never automatically promotes output to SFT data. Continue with human inspection of
-small traces before allowing any separate candidate through the normal validation,
-deduplication, and final-dataset gates.
+`run_builder_reviewer_fixer.py` now supplies a deliberately bounded adaptive pilot for one
+isolated train brief. Deterministic conservative routing selects a minimal simple path, the
+standard path, or deeper bounded high-risk review before Builder work. It records schema-
+validated Builder/Reviewer/Fixer roles, task-appropriate deterministic tester/reviewer scopes,
+structured correctness/security/API/requirements/English/code-quality failures, source-
+attributed Code Book context where relevant, provenance-preserving revisions, and a local
+held-out wording-isolation check. A candidate that passes configured checks stops early without
+a default Fixer call; no trace is described as best possible or automatically promoted to SFT
+data. Continue with human inspection of small traces before allowing any separate candidate
+through normal validation, deduplication, and final-dataset gates.
 
 ## Quality gates
 

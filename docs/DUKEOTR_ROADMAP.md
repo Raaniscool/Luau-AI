@@ -24,7 +24,7 @@ provenance only. See [MODEL_IDENTITY.md](MODEL_IDENTITY.md).
 ## Current repository foundation
 
 The repository already has a staged candidate pipeline, 131 project-authored briefs across
-its Phase-1 and broad catalogs, 24 held-out tasks, a source-checked Code Book foundation,
+its Phase-1 and broad catalogs, 100 permanently held-out rubric tasks, a source-checked Code Book foundation,
 static safety gates, LoRA/QLoRA plans,
 and baseline/evaluation runners. It does **not** yet contain a completed reviewed corpus or
 a trained DukeOTR adapter.
@@ -51,8 +51,8 @@ version exists only after its referenced artifact is actually created.
 1. Preserve the raw `qwen3:4b` answer to the permanent RemoteEvent test.
 2. Score it with a schema-constrained judge where possible, while retaining deterministic
    RemoteEvent regression flags and raw judge failures for audit.
-3. Capture the full 24-task baseline only after the one-task path is reliable on the local
-   machine.
+3. Capture the full 100-task baseline only after the one-task path is reliable on the local
+   machine, preferably in deliberate resumable batches rather than unnecessary repeated runs.
 4. Keep all answer/score artifacts outside training input.
 
 **Exit gate:** raw base answers exist locally with recorded model/options; no baseline score
@@ -143,15 +143,21 @@ The bounded implemented loop is:
 
 ```text
 isolated project-authored train brief
-  → Builder → static validator → independent Reviewer
-  → Fixer → static validator → independent Reviewer
+  → deterministic conservative effort route
+  → Builder → task-appropriate deterministic tester → independent Reviewer pass(es)
+  → Fixer → re-tester → re-review only when a bounded repair is requested
   → trace only; manual curation decision remains separate
 ```
 
-It produces structured traces, Code Book card revisions/citations, schema validation,
-correction provenance, concrete category/severity findings, human inspection points, and a
-local wording-level isolation check before roles run. It remains intentionally non-autonomous:
-an accepted trace is not a training row, and it cannot self-promote into a final dataset. See
+Simple low-risk greetings/definitions use a minimal deterministic path; normal Luau/API work
+uses the standard independent review; ambiguous or high-risk client/server, security,
+persistence, spatial/combat, lifecycle, and complex-requirement work receives bounded deeper
+review. A configured pass stops the trace early without a default Fixer call; it is not a
+best-possible-answer or promotion claim. The loop produces structured traces, Code Book card
+revisions/citations where relevant, schema validation, correction provenance, concrete
+category/severity findings, human inspection points, and a local wording-level isolation check
+before roles run. It remains intentionally non-autonomous: an accepted trace is not a training
+row, and it cannot self-promote into a final dataset. See
 [FUTURE_BUILDER_VERIFIER_REVIEWER.md](FUTURE_BUILDER_VERIFIER_REVIEWER.md) for the role
 contracts and safe small-pilot command.
 

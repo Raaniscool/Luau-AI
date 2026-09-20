@@ -13,22 +13,32 @@ through these roles:
 ```text
 project-authored train brief
   ↓  (held-out wording isolation check; no evaluation text reaches a role)
-Builder → deterministic static validator → independent Reviewer
-  ↓ revise only, bounded by configured round count
-Fixer → deterministic static validator → independent Reviewer
+deterministic conservative route: simple | normal | complex
+  ↓
+Builder → task-appropriate deterministic tester → 0 / 1 / 2 independent Reviewer pass(es)
+  ↓ pass: stop early, with no default Fixer or extra review
+  ↓ revise only, bounded by the configured route/round count
+Fixer → re-tester → re-review for the same route
   ↓
 trace artifact: accepted-for-manual-review | needs-human-review | rejected | error
 ```
 
-The default is two total candidate rounds (one Builder round and, if needed, one Fixer round).
-The configuration allows up to four. Each run records source hashes, model/options, Code Book
-card revisions and source URLs, static findings, structured reviewer findings, policy
-overrides, fixer provenance, terminal status, and a clear non-promotion statement.
+Simple low-risk greetings, short definitions, and straightforward conversational wording use a
+minimal one-round tester path with no model Reviewer. Normal Luau/API/moderate debugging work
+uses one independent Reviewer and up to two total rounds. Ambiguous, advanced, many-requirement,
+client/server, remote/security, persistence/economy, spatial/combat, architecture/lifecycle,
+or complex-debugging work uses two independent Reviewer passes and a default of three bounded
+candidate rounds (hard cap four). The deterministic route, selected/skipped checks, context
+budget, reviewer depth, and bounds are recorded in every trace. Each run records source hashes,
+model/options, Code Book card revisions/source URLs where relevant, static findings, structured
+reviewer findings, policy overrides, Fixer provenance, terminal status, and a clear
+non-promotion statement.
 
-An accepted trace means only that this bounded loop reached its configured automated quality
-policy. It is **not** added to `training_data/`, it is not a final dataset row, it is not an
-adapter, and it is not a DukeOTR model release. The ordinary validation, deduplication,
-evaluation-isolation, human-review, and explicit dataset-build gates still apply separately.
+An accepted trace means only that the candidate passed its configured task-appropriate quality
+checks. It is not described as best possible, is **not** added to `training_data/`, is not a
+final dataset row, is not an adapter, and is not a DukeOTR model release. The ordinary
+validation, deduplication, evaluation-isolation, human-review, and explicit dataset-build gates
+still apply separately.
 
 ## Safe usage
 
@@ -61,7 +71,8 @@ suitable inference environment.
 
 ### Builder
 
-**Inputs:** a project-authored train brief and bounded source-attributed Code Book context.
+**Inputs:** a project-authored train brief and route-bounded source-attributed Code Book
+context (none for the minimal simple route).
 
 **Required JSON:** a self-contained `assistant_response`, explicit assumptions, security
 notes, a test plan, and the relevant Code Book card IDs. The Builder must use natural English,
@@ -70,8 +81,10 @@ Roblox networking.
 
 ### Reviewer
 
-**Inputs:** the original train brief, candidate answer, deterministic static findings, and the
-same bounded Code Book context. Candidate text is quoted as untrusted data.
+**Inputs:** the original train brief, candidate answer, deterministic static findings, the route
+selected check scopes, and the same route-bounded Code Book context. Candidate text is quoted as
+untrusted data. The Reviewer checks relevant API/security/lifecycle scopes without inventing
+Roblox concerns for a simple wording task.
 
 **Required JSON:** a decision plus 1–5 scores for correctness, security, API validity,
 requirements, English, and code quality. Every issue is structured as:
@@ -88,8 +101,9 @@ also prevents effective acceptance.
 
 ### Fixer
 
-**Inputs:** the original train brief, prior answer, all Reviewer findings, static findings, and
-Code Book context.
+**Inputs:** the original train brief, prior answer, all Reviewer findings, static findings,
+route-selected check scopes, and Code Book context. Deeper reviewer-pass findings are
+namespaced before acknowledgement so correction provenance remains unambiguous.
 
 **Required JSON:** revised answer, changes made, remaining assumptions, unresolved risks, and
 the IDs of Reviewer findings addressed. A new candidate record is created with immutable
