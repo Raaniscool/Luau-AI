@@ -94,6 +94,35 @@ The validator must reject this rather than letting a reviewer accept it."""
         self.assertEqual(result["checker"], STATIC_CHECKER_VERSION)
         self.assertIn("network.onserverevent_client_context", codes)
         self.assertIn("api.getplayerfromcharacter_localplayer", codes)
+        self.assertIn("api.remoteevent_event_colon_indexing", codes)
+
+    def test_server_context_can_connect_on_server_event(self) -> None:
+        record = reviewed_record()
+        record["messages"][2]["content"] = """This is a valid server-owned RemoteEvent handler.
+
+```luau
+-- ServerScriptService
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PurchaseRequest = ReplicatedStorage:WaitForChild("PurchaseRequest")
+
+PurchaseRequest.OnServerEvent:Connect(function(player, itemId)
+    if itemId ~= "Potion" then
+        return
+    end
+    print(player.Name, itemId)
+end)
+```
+
+The server receives the requesting Player as its first handler argument and remains responsible for validating the request."""
+        result = static_validate(record)
+        directional_codes = {
+            "network.onserverevent_client_context",
+            "network.onclientevent_server_context",
+            "network.fireclient_client_context",
+            "network.fireserver_server_context",
+        }
+        self.assertEqual(result["status"], "pass")
+        self.assertFalse(directional_codes.intersection(item["code"] for item in result["issues"]))
 
     def test_current_static_checker_is_required_for_final_eligibility(self) -> None:
         record = reviewed_record()
