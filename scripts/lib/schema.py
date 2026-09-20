@@ -18,6 +18,10 @@ SCHEMA_VERSION = "1.0"
 STATIC_CHECKER_VERSION = "static-v2"
 
 VALID_DIFFICULTIES = {"beginner", "intermediate", "advanced"}
+# Depth is optional for legacy source briefs but required for factory-targeted briefs. It is
+# intentionally distinct from learner difficulty: a beginner task may still be normal-depth
+# when it needs several linked requirements, while an advanced task can be short and focused.
+VALID_TASK_DEPTHS = {"short", "normal", "deep"}
 # Task types are instructional modes, not quality labels. Keeping them explicit lets the
 # curriculum audit prevent a code-generation-only corpus from being mistaken for broad Luau
 # instruction coverage.
@@ -88,6 +92,15 @@ def validate_seed(seed: dict[str, Any]) -> list[dict[str, str]]:
                     re.compile(pattern)
                 except re.error as exc:
                     problems.append(issue("seed.required_code_patterns", f"Code pattern {check_id!r} is invalid: {exc}"))
+    # Existing project-authored catalogs predate these optional factory labels. When present,
+    # they must be explicit rather than silently inferred from wording.
+    if "category" in seed and (not isinstance(seed.get("category"), str) or not seed["category"].strip()):
+        problems.append(issue("seed.category", "Optional seed category must be a non-empty string"))
+    if "task_depth" in seed and seed.get("task_depth") not in VALID_TASK_DEPTHS:
+        problems.append(issue("seed.task_depth", "Optional seed task_depth must be short, normal, or deep"))
+    for key in ("difficulty_rationale", "task_depth_rationale"):
+        if key in seed and (not isinstance(seed.get(key), str) or not seed[key].strip()):
+            problems.append(issue("seed.rationale", f"Optional {key!r} must be a non-empty string when supplied"))
     if seed.get("split", "train") != "train":
         problems.append(issue("seed.split", "Generation seed split must be 'train'"))
     source = seed.get("source")
@@ -134,9 +147,34 @@ def validate_example_structure(record: dict[str, Any]) -> list[dict[str, str]]:
         topics = metadata.get("topics")
         if not isinstance(topics, list) or not topics:
             problems.append(issue("record.topics", "Record needs at least one topic"))
+        source = metadata.get("source")
+        if not isinstance(source, dict) or not isinstance(source.get("kind"), str) or not source["kind"].strip():
+            problems.append(issue("record.provenance", "Record metadata.source requires non-empty source kind"))
+        if "category" in metadata and (not isinstance(metadata.get("category"), str) or not metadata["category"].strip()):
+            problems.append(issue("record.category", "Optional metadata.category must be non-empty when supplied"))
+        if "task_depth" in metadata and metadata.get("task_depth") not in VALID_TASK_DEPTHS:
+            problems.append(issue("record.task_depth", "Optional metadata.task_depth must be short, normal, or deep"))
+        if metadata.get("stage") == "corrected":
+            if not isinstance(metadata.get("parent_record_id"), str) or not metadata["parent_record_id"].strip():
+                problems.append(issue("record.correction_parent", "Corrected record needs immutable parent_record_id"))
+            if not isinstance(metadata.get("correction"), dict):
+                problems.append(issue("record.correction_evidence", "Corrected record needs correction evidence object"))
     quality = record.get("quality")
     if not isinstance(quality, dict):
         problems.append(issue("record.quality", "Record requires a quality object"))
+    else:
+        failure_analysis = quality.get("failure_analysis")
+        if failure_analysis is not None:
+            if not isinstance(failure_analysis, dict):
+                problems.append(issue("record.failure_analysis", "Optional quality.failure_analysis must be an object"))
+            else:
+                if "unresolved_critical" in failure_analysis and not isinstance(failure_analysis.get("unresolved_critical"), bool):
+                    problems.append(issue("record.failure_analysis", "failure_analysis.unresolved_critical must be boolean"))
+                categories = failure_analysis.get("failure_categories")
+                if categories is not None and (
+                    not isinstance(categories, list) or not all(isinstance(category, str) and category.strip() for category in categories)
+                ):
+                    problems.append(issue("record.failure_analysis", "failure_analysis.failure_categories must be strings"))
     return problems
 
 
@@ -175,6 +213,19 @@ def make_generated_record(
             "task_type": seed["task_type"],
             "difficulty": seed["difficulty"],
             "title": seed["title"],
+            **({"category": seed["category"]} if isinstance(seed.get("category"), str) and seed["category"].strip() else {}),
+            **({"task_depth": seed["task_depth"]} if seed.get("task_depth") in VALID_TASK_DEPTHS else {}),
+            **(
+                {"difficulty_rationale": seed["difficulty_rationale"]}
+                if isinstance(seed.get("difficulty_rationale"), str) and seed["difficulty_rationale"].strip()
+                else {}
+            ),
+            **(
+                {"task_depth_rationale": seed["task_depth_rationale"]}
+                if isinstance(seed.get("task_depth_rationale"), str) and seed["task_depth_rationale"].strip()
+                else {}
+            ),
+            **({"targeting": deepcopy(seed["targeting"])} if isinstance(seed.get("targeting"), dict) else {}),
             "topics": topics,
             "requirements": list(seed.get("requirements", [])),
             "expected_evidence": list(seed.get("expected_evidence", [])),
@@ -225,6 +276,8 @@ def record_fingerprint(record: dict[str, Any]) -> str:
         "messages": record.get("messages"),
         "task_type": record.get("metadata", {}).get("task_type"),
         "difficulty": record.get("metadata", {}).get("difficulty"),
+        "category": record.get("metadata", {}).get("category"),
+        "task_depth": record.get("metadata", {}).get("task_depth"),
     }
     return sha256_text(canonical_json(stable))
 
@@ -257,4 +310,10 @@ def quality_gate_status(record: dict[str, Any]) -> tuple[bool, list[str]]:
     dedupe = quality.get("deduplication", {})
     if dedupe.get("status") not in {"unique", "not_applicable"}:
         reasons.append("deduplication_not_unique")
+    split_isolation = quality.get("split_isolation")
+    if isinstance(split_isolation, dict) and split_isolation.get("status") == "collision":
+        reasons.append("held_out_split_isolation_collision")
+    failure_analysis = quality.get("failure_analysis")
+    if isinstance(failure_analysis, dict) and failure_analysis.get("unresolved_critical") is True:
+        reasons.append("unresolved_critical_failure")
     return not reasons, reasons

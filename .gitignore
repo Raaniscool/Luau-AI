@@ -66,3 +66,20 @@ cache/
 artifacts/
 wandb/
 output/
+
+# Training Factory sidecars are auditable local work products, not source material or final
+# datasets. Keep only their boundary documentation in Git; never accidentally commit answers,
+# reviews, failure prompts, targeted drafts, or analysis output.
+failure_data/**
+!failure_data/
+!failure_data/README.md
+!failure_data/.gitkeep
+validated_data/training_factory/**
+!validated_data/training_factory/
+!validated_data/training_factory/README.md
+raw_data/training_factory_drafts/**
+!raw_data/training_factory_drafts/
+!raw_data/training_factory_drafts/README.md
+reports/training_factory/**
+!reports/training_factory/
+!reports/training_factory/README.md

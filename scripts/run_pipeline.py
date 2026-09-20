@@ -3,8 +3,9 @@
 It defaults to the Phase-1 Luau-fundamentals source catalog and performs generation →
 validation → correction → re-validation → deduplication. Final-dataset construction requires
 an explicit `--build-final-dataset` opt-in so a small pilot cannot become local training data
-without inspection. Fine-tuning is deliberately not included: it requires a separately
-verified GPU/cloud environment and a recorded baseline.
+without inspection. Optional factory sidecars record lineage/failures separately after
+deduplication and never promote data. Fine-tuning is deliberately not included: it requires a
+separately verified GPU/cloud environment and a recorded baseline.
 """
 
 from __future__ import annotations
@@ -37,6 +38,8 @@ def stage_paths(run_id: str) -> dict[str, str]:
         "corrected": f"validated_data/{run_id}.corrected.jsonl",
         "corrected_validated": f"validated_data/{run_id}.corrected_validated.jsonl",
         "deduplicated": f"validated_data/{run_id}.deduplicated.jsonl",
+        "factory_ledger": f"validated_data/training_factory/{run_id}.lineage.jsonl",
+        "failure_database": f"failure_data/{run_id}.failures.jsonl",
         "training_dir": f"training_data/{run_id}",
     }
 
@@ -67,6 +70,11 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Opt in to local final-dataset construction after reviewing a run; omitted by default for pilot safety",
     )
+    value.add_argument(
+        "--record-factory-sidecars",
+        action="store_true",
+        help="Opt in to separate local Builder/reviewer/fixer ledger and observed-failure records; never promotes data",
+    )
     value.add_argument("--dry-run", action="store_true", help="Write a pipeline plan only")
     value.add_argument("--report", default=None, help="Defaults to reports/<run-id>.pipeline_run.json")
     return value
@@ -94,13 +102,14 @@ def run(arguments: argparse.Namespace) -> int:
     corrected = paths["corrected"]
     corrected_validated = paths["corrected_validated"]
     deduplicated = paths["deduplicated"]
+    factory_ledger = paths["factory_ledger"]
+    failure_database = paths["failure_database"]
     training_dir = paths["training_dir"]
     report_path = arguments.report or f"reports/{arguments.run_id}.pipeline_run.json"
-    existing = [
-        path
-        for path in [generated, validated, corrected, corrected_validated, deduplicated, training_dir, report_path]
-        if Path(path).exists()
-    ]
+    paths_to_check = [generated, validated, corrected, corrected_validated, deduplicated, training_dir, report_path]
+    if arguments.record_factory_sidecars:
+        paths_to_check.extend([factory_ledger, failure_database])
+    existing = [path for path in paths_to_check if Path(path).exists()]
     if existing and not arguments.overwrite:
         raise ValueError(
             "Refusing to overwrite prior pipeline artifacts: "
@@ -120,8 +129,10 @@ def run(arguments: argparse.Namespace) -> int:
         "variants": arguments.variants,
         "baseline_requested": arguments.with_baseline,
         "final_dataset_build_requested": bool(arguments.build_final_dataset),
+        "factory_sidecars_requested": bool(arguments.record_factory_sidecars),
         "stage_paths": paths,
         "training_note": "This pipeline never invokes fine-tuning or assigns a final dataset version. Final-dataset construction is opt-in for pilot safety.",
+        "factory_note": "Optional factory sidecars are separate audit/failure artifacts only; they never promote candidates or become training input.",
     }
     if arguments.dry_run:
         commands = [
@@ -131,6 +142,33 @@ def run(arguments: argparse.Namespace) -> int:
             command("scripts.validate_examples", "--input", corrected, "--output", corrected_validated, "--model", arguments.model),
             command("scripts.deduplicate_examples", "--input", validated, "--input", corrected_validated, "--output", deduplicated),
         ]
+        if arguments.record_factory_sidecars:
+            commands.extend(
+                [
+                    command(
+                        "scripts.build_training_ledger",
+                        "--input",
+                        validated,
+                        "--corrections",
+                        corrected_validated,
+                        "--output",
+                        factory_ledger,
+                    ),
+                    command(
+                        "scripts.record_failures",
+                        "--input",
+                        validated,
+                        "--input",
+                        corrected_validated,
+                        "--input",
+                        deduplicated,
+                        "--corrections",
+                        corrected_validated,
+                        "--output",
+                        failure_database,
+                    ),
+                ]
+            )
         if arguments.build_final_dataset:
             commands.append(
                 command("scripts.build_datasets", "--input", deduplicated, "--evaluation", arguments.evaluation, "--output-dir", training_dir, "--strict")
@@ -220,6 +258,27 @@ def run(arguments: argparse.Namespace) -> int:
         plan.update({"status": "failed", "results": results, "completed_at": utc_now()})
         write_json_atomic(report_path, plan)
         return 2
+    if arguments.record_factory_sidecars:
+        ledger_args = command("scripts.build_training_ledger", "--input", validated, "--output", factory_ledger)
+        failure_args = command("scripts.record_failures", "--input", validated, "--output", failure_database)
+        if correction_count:
+            ledger_args.extend(["--corrections", corrected_validated])
+            # Include the revalidated correction as an independently observable trace as
+            # well as a linked correction for the original failure. The recorder uses immutable
+            # record IDs, so it does not silently overwrite either lineage.
+            failure_args.extend(["--input", corrected_validated, "--corrections", corrected_validated])
+        # This later stage has the same immutable candidate IDs/answers but richer duplicate and
+        # held-out-isolation evidence. record_failures deliberately merges that metadata rather
+        # than treating it as a second candidate.
+        failure_args.extend(["--input", deduplicated])
+        if not run_command("factory_lineage_ledger", ledger_args, results):
+            plan.update({"status": "failed", "results": results, "completed_at": utc_now()})
+            write_json_atomic(report_path, plan)
+            return 2
+        if not run_command("factory_failure_recording", failure_args, results):
+            plan.update({"status": "failed", "results": results, "completed_at": utc_now()})
+            write_json_atomic(report_path, plan)
+            return 2
     if not arguments.build_final_dataset:
         results.append(
             {

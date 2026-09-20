@@ -99,6 +99,12 @@ The trainer rechecks that every row remains quality-gated, that train/developmen
 labels are correct, that no evaluation source ID is present, and that all dataset-file hashes
 match the final-dataset manifest. It will not train from arbitrary chat-shaped JSONL.
 
+Training Factory failure records, Builder/reviewer/fixer lineage ledgers, targeted source-task
+drafts, verified knowledge entries, Code Book cards, baseline answers, scoring reports, and
+held-out evaluation material are explicitly **not** bundle inputs. They remain separate until a
+human-reviewed canonical candidate independently clears every final-data gate. See
+[`training_factory/README.md`](../training_factory/README.md).
+
 ## Build and package only after the data release gate
 
 Do not run these commands for `_001`, `_002`, an unreviewed pilot, or an unversioned local
@@ -183,6 +189,7 @@ python -m compileall -q scripts
 python scripts/audit_dukeotr_curriculum.py --strict
 python scripts/audit_catalog.py --fail-on-missing
 python scripts/audit_code_book.py --strict
+python -m scripts.audit_training_factory --strict
 python -m unittest discover -v
 
 python -m scripts.preflight_hardware \

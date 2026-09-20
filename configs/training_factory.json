@@ -1,0 +1,142 @@
+{
+  "schema_version": "1.0",
+  "project_name": "DukeOTR",
+  "status": "implemented_data_infrastructure_not_training_or_model_generation",
+  "canonical_candidate_schema": "scripts/lib/schema.py",
+  "factory_schema": "training_factory/schema.json",
+  "failure_taxonomy": "training_factory/failure_taxonomy.json",
+  "targeted_brief_templates": "training_factory/targeted_brief_templates.json",
+  "model_version_registry": "training_factory/model_versions.json",
+  "source_catalogs": [
+    "raw_data/dukeotr_phase1_luau_seed_tasks.jsonl",
+    "raw_data/roblox_luau_seed_tasks.jsonl"
+  ],
+  "held_out_evaluation": "evaluation_data/roblox_luau_eval.jsonl",
+  "failure_database_directory": "failure_data",
+  "draft_directory": "raw_data/training_factory_drafts",
+  "ledger_directory": "validated_data/training_factory",
+  "report_directory": "reports/training_factory",
+  "dataset_version_target": "dukeotr_dataset_v1",
+  "model_version_target": "dukeotr_v1",
+  "allowed_task_depths": [
+    "short",
+    "normal",
+    "deep"
+  ],
+  "task_categories": [
+    "english_and_engineering_reasoning",
+    "luau_language",
+    "roblox_api_and_luau",
+    "roblox_spatial_reasoning",
+    "roblox_physics",
+    "roblox_persistence",
+    "roblox_runtime_quality",
+    "client_server_security",
+    "roblox_ui",
+    "three_d_model_presentation",
+    "unclassified"
+  ],
+  "allowed_failure_severities": [
+    "minor",
+    "moderate",
+    "major",
+    "critical"
+  ],
+  "targeted_generation": {
+    "requires_observed_failure_evidence": true,
+    "requires_human_review_before_promotion": true,
+    "maximum_drafts_per_request": 250,
+    "minimum_failure_count_for_recommendation": 1,
+    "deduplication_threshold": 0.82,
+    "cross_split_prompt_threshold": 0.93,
+    "seed": 3407
+  },
+  "coverage_tracks": {
+    "english_reasoning": [
+      "English comprehension",
+      "requirement following",
+      "ambiguity handling",
+      "technical explanation",
+      "concise response",
+      "detailed response",
+      "misconception correction",
+      "natural conversation"
+    ],
+    "luau": [
+      "variables",
+      "functions",
+      "tables",
+      "loops",
+      "events",
+      "modules",
+      "metatables",
+      "error handling",
+      "debugging",
+      "code explanation",
+      "code generation",
+      "code correction"
+    ],
+    "roblox": [
+      "Instances",
+      "Services",
+      "Players",
+      "Characters",
+      "Humanoids",
+      "UI",
+      "physics",
+      "CFrame",
+      "Vector3",
+      "RemoteEvents",
+      "RemoteFunctions",
+      "DataStores",
+      "Attributes",
+      "CollectionService",
+      "TweenService",
+      "RunService",
+      "input",
+      "animations",
+      "tools",
+      "networking",
+      "architecture",
+      "optimization",
+      "cleanup lifecycle"
+    ],
+    "client_server_security": [
+      "LocalScript versus Script",
+      "server authority",
+      "replication",
+      "remote validation",
+      "exploit resistance",
+      "client and server responsibilities",
+      "common misconceptions"
+    ],
+    "ui": [
+      "layout",
+      "responsiveness",
+      "mobile small viewport",
+      "scrolling",
+      "input",
+      "usability",
+      "visual hierarchy",
+      "UI state synchronization"
+    ],
+    "three_d_models": [
+      "model structure",
+      "proportions",
+      "materials",
+      "visual readability",
+      "animation",
+      "performance",
+      "clipping",
+      "presentation"
+    ]
+  },
+  "invariants": [
+    "The factory records provenance and quality evidence; it does not prove factual correctness automatically.",
+    "Failure statistics are computed only from stored failure records and never fabricated from targets or plans.",
+    "Targeted briefs are draft task specifications, not model answers, training data, or evaluation material until human review and the normal quality pipeline complete.",
+    "Verified Knowledge and Code Book content stay separate from training candidates unless an explicit human-reviewed conversion creates a distinct candidate artifact.",
+    "Held-out prompts, rubrics, baseline answers, candidate answers, and score reports never become training or targeted-brief inputs.",
+    "Arena tooling must not train, export, import, or claim a DukeOTR model."
+  ]
+}

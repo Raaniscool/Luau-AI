@@ -83,10 +83,20 @@ def validate_evaluation_tasks(tasks: list[dict[str, Any]]) -> None:
 
 def deterministic_partitions(records: list[dict[str, Any]], ratio: float) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Create a reproducible stratified development split without touching held-out eval."""
-    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    groups: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for record in records:
         metadata = record.get("metadata", {})
-        groups[(str(metadata.get("task_type")), str(metadata.get("difficulty")))].append(record)
+        # Category/depth are optional for legacy candidates. When the factory supplied them,
+        # retain those strata so a deterministic development split does not erase targeted
+        # coverage evidence.
+        groups[
+            (
+                str(metadata.get("task_type")),
+                str(metadata.get("difficulty")),
+                str(metadata.get("category", "legacy_unclassified")),
+                str(metadata.get("task_depth", "legacy_unspecified")),
+            )
+        ].append(record)
     train: list[dict[str, Any]] = []
     development: list[dict[str, Any]] = []
     for _key, group in sorted(groups.items()):
@@ -118,15 +128,21 @@ def coverage(records: list[dict[str, Any]]) -> dict[str, Any]:
     topics = Counter()
     task_types = Counter()
     difficulties = Counter()
+    categories = Counter()
+    task_depths = Counter()
     for record in records:
         metadata = record.get("metadata", {})
         task_types[str(metadata.get("task_type"))] += 1
         difficulties[str(metadata.get("difficulty"))] += 1
+        categories[str(metadata.get("category", "legacy_unclassified"))] += 1
+        task_depths[str(metadata.get("task_depth", "legacy_unspecified"))] += 1
         for topic in metadata.get("topics", []):
             topics[str(topic)] += 1
     return {
         "task_types": dict(sorted(task_types.items())),
         "difficulties": dict(sorted(difficulties.items())),
+        "categories": dict(sorted(categories.items())),
+        "task_depths": dict(sorted(task_depths.items())),
         "topics": dict(sorted(topics.items())),
     }
 

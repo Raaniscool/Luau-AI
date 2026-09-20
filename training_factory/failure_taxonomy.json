@@ -1,0 +1,376 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Controlled labels for evidence-backed failures in DukeOTR candidate traces. Labels are observations or reviewer conclusions, not automatic claims of factual correctness.",
+  "categories": [
+    {
+      "id": "nonexistent_roblox_api",
+      "label": "Nonexistent or unsupported Roblox API claim",
+      "default_severity": "major",
+      "target_profile": "api_correctness"
+    },
+    {
+      "id": "incorrect_api_usage",
+      "label": "Incorrect Roblox or Luau API usage",
+      "default_severity": "major",
+      "target_profile": "api_correctness"
+    },
+    {
+      "id": "incorrect_luau_syntax",
+      "label": "Incorrect Luau syntax or semantics",
+      "default_severity": "major",
+      "target_profile": "luau_reasoning"
+    },
+    {
+      "id": "client_server_confusion",
+      "label": "Incorrect client/server placement or direction",
+      "default_severity": "critical",
+      "target_profile": "remote_security"
+    },
+    {
+      "id": "insecure_remote_handling",
+      "label": "Unsafe RemoteEvent or RemoteFunction handling",
+      "default_severity": "critical",
+      "target_profile": "remote_security"
+    },
+    {
+      "id": "trusting_client_data",
+      "label": "Server trusts client-controlled sensitive state",
+      "default_severity": "critical",
+      "target_profile": "remote_security"
+    },
+    {
+      "id": "datastore_safety",
+      "label": "Unsafe or incorrect DataStore handling",
+      "default_severity": "major",
+      "target_profile": "datastore_safety"
+    },
+    {
+      "id": "performance_issue",
+      "label": "Avoidable performance or scheduling problem",
+      "default_severity": "moderate",
+      "target_profile": "lifecycle_performance"
+    },
+    {
+      "id": "lifecycle_or_cleanup_bug",
+      "label": "Connection, instance, or cleanup lifecycle problem",
+      "default_severity": "moderate",
+      "target_profile": "lifecycle_performance"
+    },
+    {
+      "id": "incorrect_cframe_reasoning",
+      "label": "Incorrect CFrame, Vector3, transform, or spatial reasoning",
+      "default_severity": "major",
+      "target_profile": "cframe_reasoning"
+    },
+    {
+      "id": "incorrect_physics_reasoning",
+      "label": "Incorrect Roblox physics or assembly reasoning",
+      "default_severity": "major",
+      "target_profile": "physics_reasoning"
+    },
+    {
+      "id": "three_d_model_presentation_quality",
+      "label": "3D model structure, presentation, or performance quality problem",
+      "default_severity": "moderate",
+      "target_profile": "three_d_model_presentation"
+    },
+    {
+      "id": "incorrect_ui_behavior",
+      "label": "Incorrect Roblox UI behavior or state handling",
+      "default_severity": "moderate",
+      "target_profile": "ui_responsiveness"
+    },
+    {
+      "id": "poor_ui_responsiveness",
+      "label": "UI layout does not account for responsive device or viewport behavior",
+      "default_severity": "moderate",
+      "target_profile": "ui_responsiveness"
+    },
+    {
+      "id": "incomplete_requirements",
+      "label": "Required behavior, constraint, or explanation is missing",
+      "default_severity": "moderate",
+      "target_profile": "requirements_reasoning"
+    },
+    {
+      "id": "instruction_following_failure",
+      "label": "Response does not follow the requested output or task framing",
+      "default_severity": "moderate",
+      "target_profile": "requirements_reasoning"
+    },
+    {
+      "id": "hallucinated_or_unverified_claim",
+      "label": "Unverified factual claim or invented behavior",
+      "default_severity": "major",
+      "target_profile": "api_correctness"
+    },
+    {
+      "id": "english_or_reasoning_quality",
+      "label": "English comprehension, clarity, or reasoning quality problem",
+      "default_severity": "moderate",
+      "target_profile": "requirements_reasoning"
+    },
+    {
+      "id": "code_quality_or_maintainability",
+      "label": "Code quality, readability, or maintainability problem",
+      "default_severity": "minor",
+      "target_profile": "lifecycle_performance"
+    },
+    {
+      "id": "duplicate_or_split_contamination",
+      "label": "Duplicate or split-isolation failure",
+      "default_severity": "major",
+      "target_profile": "requirements_reasoning"
+    },
+    {
+      "id": "other_observed_failure",
+      "label": "Observed failure not yet mapped to a more specific controlled label",
+      "default_severity": "moderate",
+      "target_profile": "requirements_reasoning"
+    }
+  ],
+  "rules": [
+    {
+      "category": "nonexistent_roblox_api",
+      "static_code_prefixes": [
+        "api.nonexistent_",
+        "api.unknown_service"
+      ],
+      "keywords": [
+        "nonexistent api",
+        "does not exist",
+        "unknown service",
+        "invented api"
+      ]
+    },
+    {
+      "category": "incorrect_api_usage",
+      "static_code_prefixes": [
+        "api."
+      ],
+      "keywords": [
+        "api misuse",
+        "incorrect api",
+        "wrong api",
+        "method call"
+      ]
+    },
+    {
+      "category": "incorrect_luau_syntax",
+      "static_code_prefixes": [
+        "code.not_luau_like",
+        "code.syntax"
+      ],
+      "keywords": [
+        "syntax",
+        "luau semantics",
+        "type error"
+      ]
+    },
+    {
+      "category": "client_server_confusion",
+      "static_code_prefixes": [
+        "network.remote_missing_player",
+        "network.remote_function_missing_player",
+        "network.fireclient_missing_player"
+      ],
+      "keywords": [
+        "client/server",
+        "server should",
+        "local script",
+        "script placement",
+        "fireserver"
+      ]
+    },
+    {
+      "category": "insecure_remote_handling",
+      "static_code_prefixes": [
+        "network.remote_",
+        "security.remote_"
+      ],
+      "keywords": [
+        "remoteevent",
+        "remotefunction",
+        "validate remote",
+        "remote security"
+      ]
+    },
+    {
+      "category": "trusting_client_data",
+      "static_code_prefixes": [
+        "security.trust_client",
+        "network.client_trust"
+      ],
+      "keywords": [
+        "trust client",
+        "client-controlled",
+        "client supplied price",
+        "server authority"
+      ]
+    },
+    {
+      "category": "datastore_safety",
+      "static_code_prefixes": [
+        "datastore."
+      ],
+      "keywords": [
+        "datastore",
+        "data store"
+      ]
+    },
+    {
+      "category": "performance_issue",
+      "static_code_prefixes": [
+        "performance."
+      ],
+      "keywords": [
+        "performance",
+        "per frame",
+        "busy loop",
+        "yield"
+      ]
+    },
+    {
+      "category": "lifecycle_or_cleanup_bug",
+      "static_code_prefixes": [
+        "lifecycle.",
+        "memory."
+      ],
+      "keywords": [
+        "cleanup",
+        "disconnect",
+        "memory leak",
+        "lifecycle"
+      ]
+    },
+    {
+      "category": "incorrect_cframe_reasoning",
+      "static_code_prefixes": [],
+      "keywords": [
+        "cframe",
+        "vector3",
+        "transform",
+        "world space",
+        "local space"
+      ]
+    },
+    {
+      "category": "incorrect_physics_reasoning",
+      "static_code_prefixes": [],
+      "keywords": [
+        "physics",
+        "assembly",
+        "network ownership",
+        "anchored"
+      ]
+    },
+    {
+      "category": "three_d_model_presentation_quality",
+      "static_code_prefixes": [],
+      "keywords": [
+        "3d model",
+        "model presentation",
+        "materials",
+        "proportions",
+        "clipping",
+        "visual readability"
+      ]
+    },
+    {
+      "category": "incorrect_ui_behavior",
+      "static_code_prefixes": [],
+      "keywords": [
+        "screen gui",
+        "gui",
+        "ui state",
+        "button"
+      ]
+    },
+    {
+      "category": "poor_ui_responsiveness",
+      "static_code_prefixes": [],
+      "keywords": [
+        "responsive",
+        "viewport",
+        "screen size",
+        "mobile layout",
+        "uiscale"
+      ]
+    },
+    {
+      "category": "incomplete_requirements",
+      "static_code_prefixes": [
+        "coverage.",
+        "answer.missing_"
+      ],
+      "keywords": [
+        "missing requirement",
+        "incomplete",
+        "does not address",
+        "required"
+      ]
+    },
+    {
+      "category": "instruction_following_failure",
+      "static_code_prefixes": [
+        "answer."
+      ],
+      "keywords": [
+        "instruction",
+        "requested format",
+        "follow the request"
+      ]
+    },
+    {
+      "category": "hallucinated_or_unverified_claim",
+      "static_code_prefixes": [
+        "factual."
+      ],
+      "keywords": [
+        "hallucinated",
+        "fabricated",
+        "unverified claim",
+        "unsupported claim"
+      ]
+    },
+    {
+      "category": "english_or_reasoning_quality",
+      "static_code_prefixes": [
+        "english.",
+        "reasoning."
+      ],
+      "keywords": [
+        "unclear",
+        "english",
+        "reasoning",
+        "contradictory"
+      ]
+    },
+    {
+      "category": "code_quality_or_maintainability",
+      "static_code_prefixes": [
+        "style.",
+        "code.quality"
+      ],
+      "keywords": [
+        "readability",
+        "maintainability",
+        "code quality",
+        "style"
+      ]
+    },
+    {
+      "category": "duplicate_or_split_contamination",
+      "static_code_prefixes": [
+        "dedupe.",
+        "isolation."
+      ],
+      "keywords": [
+        "duplicate",
+        "held-out",
+        "contamination",
+        "split collision"
+      ]
+    }
+  ]
+}

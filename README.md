@@ -23,7 +23,8 @@ identity of a finished specialized assistant.
 Read the current non-claims in [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), the
 [eight-month readiness assessment](docs/DUKEOTR_READINESS_ASSESSMENT.md), the staged curriculum
 in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), the explicit
-[DukeOTR identity/provenance policy](docs/MODEL_IDENTITY.md), and the
+[DukeOTR identity/provenance policy](docs/MODEL_IDENTITY.md), the
+[Training Factory](training_factory/README.md), and the
 [training-machine runbook](docs/TRAINING_MACHINE_RUNBOOK.md).
 
 ## Execution boundary
@@ -104,6 +105,11 @@ permanently held-out evaluation JSONL.
   the combined source-brief form evidence and held-out wording isolation.
 - A staged, auditable workflow:
   **generation → validation → review → correction → re-validation → deduplication → final dataset**.
+- A reproducible, sidecar **Training Factory**: machine-readable Builder/reviewer/fixer lineage
+  ledgers, a separate evidence-only failure database, controlled failure taxonomy/statistics,
+  deterministic human-review-required targeted source-brief planning, task depth/category
+  metadata, version metadata, and strict isolation audits. It creates no answers, final corpus,
+  adapters, or automatic promotion; see [training_factory/README.md](training_factory/README.md).
 - A 100-task permanently held-out, rubric-driven evaluation suite spanning short and deep
   tasks, task forms, difficulty levels, Luau/Roblox domains, and adversarial/security reasoning;
   it and the original base-model baseline path never become training input.
@@ -119,6 +125,9 @@ raw_data/          Project-authored source briefs, including the DukeOTR Phase-1
 legacy_data/       Archive location for compatible historic material; do not discard useful data
 generated_data/    Local candidate outputs (ignored; never automatically final)
 validated_data/    Local review/correction/dedupe artifacts (ignored)
+validated_data/training_factory/  Local Builder/reviewer/fixer audit ledgers (ignored)
+failure_data/      Local observed-failure database (ignored; never automatic training input)
+raw_data/training_factory_drafts/ Local review-required targeted source briefs (ignored)
 training_data/     Local quality-gated dataset versions only (ignored)
 evaluation_data/   Held-out prompts/rubrics (tracked; permanently excluded from training)
 code_book/         Source-attributed Roblox/Luau cards (tracked; manual curation only)
@@ -148,6 +157,7 @@ python -m compileall -q scripts
 python .\scripts\audit_dukeotr_curriculum.py --strict
 python .\scripts\audit_catalog.py --fail-on-missing
 python .\scripts\audit_code_book.py --strict
+python -m scripts.audit_training_factory --strict
 python -m unittest discover -v
 ```
 

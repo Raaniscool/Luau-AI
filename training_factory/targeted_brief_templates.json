@@ -1,0 +1,820 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Deterministic, review-required task-brief templates. These are not answer templates and cannot add records to a training corpus automatically.",
+  "profiles": [
+    {
+      "id": "remote_security",
+      "failure_categories": [
+        "client_server_confusion",
+        "insecure_remote_handling",
+        "trusting_client_data"
+      ],
+      "category": "client_server_security",
+      "concepts": [
+        "RemoteEvent",
+        "RemoteFunction",
+        "FireServer",
+        "OnServerEvent",
+        "server authority",
+        "validation",
+        "rate limiting"
+      ],
+      "scenarios": [
+        "a coin purchase request",
+        "a combat hit request",
+        "an inventory equip request",
+        "a quest reward claim",
+        "a trading offer update",
+        "a round vote submission",
+        "a vehicle spawn request",
+        "a cosmetic unlock request"
+      ],
+      "failure_modes": [
+        "the client sends a price or reward amount that must not be trusted",
+        "the remote is called from the wrong execution side",
+        "the server handler lacks type and range checks",
+        "the request can be spammed without a cooldown",
+        "the client claims ownership of an item it has not earned",
+        "the response confuses RemoteEvent and RemoteFunction roles"
+      ],
+      "task_forms": [
+        "security_review",
+        "insecurity_analysis",
+        "bug_fix",
+        "requirements_implementation",
+        "code_review",
+        "runtime_reasoning"
+      ],
+      "form_instructions": {
+        "security_review": "Ask for a focused security review that identifies the trust boundary, labels client-controlled values, and states the server-side validation responsibilities.",
+        "insecurity_analysis": "Ask for an explanation of why the proposed pattern is insecure, what an exploiter can invoke, and a safer server-authoritative design.",
+        "bug_fix": "Ask for a corrected Luau design and explanation of every change needed to enforce server authority.",
+        "requirements_implementation": "Ask for a server-authoritative implementation plan with explicit validation, permission, cooldown, and response requirements.",
+        "code_review": "Ask for a code review that prioritizes exploit resistance and distinguishes advisory client checks from authoritative server checks.",
+        "runtime_reasoning": "Ask for a request-flow trace from LocalScript to server handler and back, including where sensitive state is read and changed."
+      },
+      "base_requirements": [
+        "State that a client can invoke FireServer and that a remote does not authenticate the caller or payload.",
+        "Keep sensitive currency, inventory, damage, ownership, and reward decisions on the server.",
+        "Do not invent Roblox APIs or claim that remotes are secure by default."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Use one remote and one clear server-side validation rule.",
+          "Explain the client/server roles in plain English."
+        ],
+        "intermediate": [
+          "Cover type, range, permission, and state validation.",
+          "Include a bounded cooldown or rate-limit design."
+        ],
+        "advanced": [
+          "Address replay/spam behavior, authoritative state lookup, and failure responses.",
+          "Explain tradeoffs without treating client checks as security."
+        ]
+      },
+      "expected_evidence": [
+        "OnServerEvent receives Player first",
+        "server recomputes or looks up sensitive state",
+        "input validation and cooldown",
+        "clear trust-boundary explanation"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not frame exploit behavior as a usable exploit recipe.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "cframe_reasoning",
+      "failure_categories": [
+        "incorrect_cframe_reasoning"
+      ],
+      "category": "roblox_spatial_reasoning",
+      "concepts": [
+        "CFrame",
+        "Vector3",
+        "world space",
+        "object space",
+        "rotation",
+        "look direction",
+        "pivot"
+      ],
+      "scenarios": [
+        "placing a building preview in front of a character",
+        "rotating a turret toward a target",
+        "moving a pet relative to its owner",
+        "spawning a projectile from a tool muzzle",
+        "aligning a door model to a hinge",
+        "converting a hit position between local and world space",
+        "placing a camera-relative interaction marker",
+        "offsetting a vehicle seat attachment"
+      ],
+      "failure_modes": [
+        "the code treats a position and a transform as interchangeable",
+        "the local-space offset is multiplied in the wrong order",
+        "the requested rotation uses the wrong axis or reference frame",
+        "the design loses orientation when moving a model",
+        "the reasoning mixes a direction vector with an absolute world position",
+        "the model pivot is ignored"
+      ],
+      "task_forms": [
+        "runtime_reasoning",
+        "subtle_bug_analysis",
+        "bug_fix",
+        "code_explanation",
+        "requirements_implementation",
+        "output_prediction"
+      ],
+      "form_instructions": {
+        "runtime_reasoning": "Ask for a step-by-step spatial reasoning trace that names the coordinate space of each value.",
+        "subtle_bug_analysis": "Ask for diagnosis of a plausible transform bug and a corrected approach with an explanation of multiplication order.",
+        "bug_fix": "Ask for a corrected implementation plan that preserves both position and orientation as required.",
+        "code_explanation": "Ask for an explanation of the distinction among Vector3 positions, directions, and CFrame transforms in this scenario.",
+        "requirements_implementation": "Ask for a precise spatial implementation plan including reference frame, offsets, and pivot handling.",
+        "output_prediction": "Ask for a reasoned prediction of the spatial result after a stated transform sequence."
+      },
+      "base_requirements": [
+        "Name world space and object/local space when relevant.",
+        "Distinguish Vector3 values from CFrame transforms.",
+        "State assumptions about model pivot, orientation, and coordinate axes."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Use a single position-plus-orientation distinction.",
+          "Avoid unnecessary matrix terminology."
+        ],
+        "intermediate": [
+          "Include one local offset and explain transform order.",
+          "Discuss a model or attachment pivot."
+        ],
+        "advanced": [
+          "Compare at least two coordinate spaces or chained transforms.",
+          "Require validation of edge cases such as a zero-length look direction."
+        ]
+      },
+      "expected_evidence": [
+        "CFrame versus Vector3 distinction",
+        "named coordinate spaces",
+        "pivot or orientation preservation",
+        "explicit transform-order rationale"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not imply a CFrame API without verification.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "three_d_model_presentation",
+      "failure_categories": [
+        "three_d_model_presentation_quality"
+      ],
+      "category": "three_d_model_presentation",
+      "concepts": [
+        "model hierarchy",
+        "proportions",
+        "materials",
+        "visual readability",
+        "clipping",
+        "animation readiness",
+        "performance budget"
+      ],
+      "scenarios": [
+        "a collectible character companion",
+        "a marketplace item preview",
+        "a vehicle prop for a racing game",
+        "a modular building kit",
+        "an NPC accessory set",
+        "a readable quest-object landmark",
+        "a tool with a visible handle and effects",
+        "a small environment prop set"
+      ],
+      "failure_modes": [
+        "the silhouette is unreadable at common gameplay distances",
+        "materials and detail make the object visually noisy",
+        "the hierarchy is hard to animate or attach safely",
+        "small-screen presentation hides important interaction affordances",
+        "the asset budget ignores repeated-instance performance",
+        "geometry or effects risk clipping through nearby surfaces"
+      ],
+      "task_forms": [
+        "code_review",
+        "requirements_implementation",
+        "architecture_design",
+        "tradeoff_analysis",
+        "runtime_reasoning",
+        "refactoring"
+      ],
+      "form_instructions": {
+        "code_review": "Ask for a structured review of the 3D/model proposal, separating visual concerns, Roblox hierarchy assumptions, and runtime cost concerns.",
+        "requirements_implementation": "Ask for a requirements-first plan for a readable, maintainable 3D/model asset that states integration and performance constraints.",
+        "architecture_design": "Ask for a component/hierarchy design that supports animation, attachments, reuse, and predictable runtime ownership.",
+        "tradeoff_analysis": "Ask for a comparison of visual detail, readability, and repeated-instance performance for the stated game context.",
+        "runtime_reasoning": "Ask for a lifecycle trace from loading/presentation through interaction or animation to cleanup/reuse.",
+        "refactoring": "Ask for a refactoring plan that simplifies a model hierarchy while preserving specified presentation and interaction behavior."
+      },
+      "base_requirements": [
+        "State visual readability, hierarchy, runtime, and device-context assumptions explicitly.",
+        "Distinguish artistic or product choices from verified Roblox API facts.",
+        "Consider repeated-instance cost and cleanup where the asset has runtime behavior."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Focus on one visual readability issue and one hierarchy/integration decision.",
+          "Use a small, concrete gameplay context."
+        ],
+        "intermediate": [
+          "Require a tradeoff among proportions, materials, animation/attachment needs, and performance.",
+          "Include an explicit device or camera-distance consideration."
+        ],
+        "advanced": [
+          "Require a reusable hierarchy/lifecycle design, repeated-instance budget reasoning, and edge cases such as clipping or state synchronization.",
+          "State non-goals to avoid unsupported visual or API claims."
+        ]
+      },
+      "expected_evidence": [
+        "readability or silhouette rationale",
+        "maintainable model hierarchy",
+        "performance/reuse consideration",
+        "clearly stated artistic versus verified technical assumptions"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not claim a 3D asset or API behavior is verified without evidence.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "ui_responsiveness",
+      "failure_categories": [
+        "incorrect_ui_behavior",
+        "poor_ui_responsiveness"
+      ],
+      "category": "roblox_ui",
+      "concepts": [
+        "ScreenGui",
+        "Frame",
+        "UIScale",
+        "UIListLayout",
+        "AutomaticSize",
+        "viewport",
+        "input",
+        "state synchronization"
+      ],
+      "scenarios": [
+        "a shop panel used on phone and desktop",
+        "a quest tracker with changing objective text",
+        "an inventory grid with item cards",
+        "a dialogue choice menu",
+        "a leaderboard panel with scrolling entries",
+        "a settings menu with accessibility text scaling",
+        "a match queue screen with dynamic status",
+        "a tool hotbar with touch input"
+      ],
+      "failure_modes": [
+        "fixed pixel offsets cause clipping on small screens",
+        "button state is updated before server confirmation",
+        "a layout does not account for dynamic text size",
+        "input handling assumes mouse-only interaction",
+        "a scrolling list has no constrained content sizing",
+        "the interface duplicates state instead of reacting to authoritative updates"
+      ],
+      "task_forms": [
+        "requirements_implementation",
+        "code_review",
+        "bug_fix",
+        "architecture_design",
+        "runtime_reasoning",
+        "tradeoff_analysis"
+      ],
+      "form_instructions": {
+        "requirements_implementation": "Ask for a UI implementation plan with device, viewport, state, and accessibility requirements.",
+        "code_review": "Ask for review of a proposed UI approach, focusing on responsiveness and authoritative state synchronization.",
+        "bug_fix": "Ask for a diagnosis and correction plan for the specified UI failure without assuming a fixed screen size.",
+        "architecture_design": "Ask for a small UI state architecture that separates rendering, input, and confirmed server state.",
+        "runtime_reasoning": "Ask for an event-flow trace from user input through a request and confirmed UI update.",
+        "tradeoff_analysis": "Ask for tradeoffs between fixed offsets, scale/layout constraints, and dynamic sizing for the scenario."
+      },
+      "base_requirements": [
+        "Consider at least two viewport or input contexts.",
+        "Keep server-owned game state authoritative when the UI starts a request.",
+        "Explain how layout reacts to dynamic content."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Cover one responsive layout concern and one input path.",
+          "Use plain language for UI state."
+        ],
+        "intermediate": [
+          "Cover dynamic text or lists, scale/layout choices, and confirmation state.",
+          "Describe an accessibility or touch consideration."
+        ],
+        "advanced": [
+          "Separate UI presentation state from authoritative game state.",
+          "Discuss cleanup, event connections, and rapid repeated input."
+        ]
+      },
+      "expected_evidence": [
+        "viewport-aware layout reasoning",
+        "responsive UI primitive choice",
+        "input and accessibility consideration",
+        "authoritative state synchronization"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not claim a fixed device size is universal.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "api_correctness",
+      "failure_categories": [
+        "nonexistent_roblox_api",
+        "incorrect_api_usage",
+        "hallucinated_or_unverified_claim"
+      ],
+      "category": "roblox_api_and_luau",
+      "concepts": [
+        "service lookup",
+        "events",
+        "callbacks",
+        "ModuleScript",
+        "Instance hierarchy",
+        "API verification",
+        "RunContext"
+      ],
+      "scenarios": [
+        "connecting a RemoteEvent server handler",
+        "loading a shared ModuleScript",
+        "finding a service for player interaction",
+        "responding to a ProximityPrompt",
+        "cleaning up an instance with Debris",
+        "creating an attribute-driven interaction",
+        "using a character Humanoid event",
+        "building a simple TweenService animation"
+      ],
+      "failure_modes": [
+        "the proposed member is not a documented API",
+        "an event is treated as a callable function",
+        "a callback is connected instead of assigned",
+        "a service name is plausible but wrong",
+        "the code uses a client-only API from server context",
+        "the answer makes an undocumented behavioral claim"
+      ],
+      "task_forms": [
+        "api_misuse_diagnosis",
+        "api_usage",
+        "code_review",
+        "bad_answer_critique",
+        "bug_fix",
+        "question_answer"
+      ],
+      "form_instructions": {
+        "api_misuse_diagnosis": "Ask for identification of the API misuse, an explanation of the documented pattern to verify, and a safe replacement plan.",
+        "api_usage": "Ask for a context-aware API usage plan that names placement and assumptions requiring source verification.",
+        "code_review": "Ask for review of a snippet concept that separates documented facts from uncertain assumptions.",
+        "bad_answer_critique": "Ask for a critique of a deliberately flawed API claim and a correction strategy without treating the flawed claim as fact.",
+        "bug_fix": "Ask for a fix plan that changes only the unsupported API use and explains why.",
+        "question_answer": "Ask a concise conceptual question that requires distinguishing an event, method, callback, or service role."
+      },
+      "base_requirements": [
+        "State when the answer must be checked against authoritative Roblox or Luau documentation.",
+        "Name execution context or placement where it affects API use.",
+        "Do not invent APIs to fill a gap."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Focus on one API object and its documented role.",
+          "Ask for a simple placement explanation."
+        ],
+        "intermediate": [
+          "Contrast two similar API patterns or contexts.",
+          "Require a clear factual-versus-assumption distinction."
+        ],
+        "advanced": [
+          "Require a review of multiple interaction points and error handling.",
+          "Include an explicit verification plan for unfamiliar members."
+        ]
+      },
+      "expected_evidence": [
+        "documented API role",
+        "placement or RunContext consideration",
+        "clear correction of unsupported claim",
+        "source-verification boundary"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not state undocumented API facts as requirements.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "luau_reasoning",
+      "failure_categories": [
+        "incorrect_luau_syntax"
+      ],
+      "category": "luau_language",
+      "concepts": [
+        "types",
+        "tables",
+        "closures",
+        "iterators",
+        "error handling",
+        "ModuleScript",
+        "metatables",
+        "events"
+      ],
+      "scenarios": [
+        "a reusable inventory helper module",
+        "a round-state table",
+        "a connection manager",
+        "a typed configuration object",
+        "a callback-based reward resolver",
+        "a player-session cleanup helper",
+        "a table transformation utility",
+        "a protected DataStore result wrapper"
+      ],
+      "failure_modes": [
+        "table iteration uses the wrong form",
+        "a closure captures changing state unexpectedly",
+        "a return value is dropped or misordered",
+        "a type annotation conflicts with the value shape",
+        "error handling assumes pcall returns a different result",
+        "a module is treated as a globally shared mutable singleton without context"
+      ],
+      "task_forms": [
+        "subtle_bug_analysis",
+        "diagnosis_correction",
+        "code_explanation",
+        "completion",
+        "output_prediction",
+        "refactoring"
+      ],
+      "form_instructions": {
+        "subtle_bug_analysis": "Ask for an explanation of the language-level bug, why it occurs, and a minimal correction strategy.",
+        "diagnosis_correction": "Ask for diagnosis and a corrected approach with explicit stated assumptions about types and return values.",
+        "code_explanation": "Ask for a concept-focused explanation using the scenario rather than a memorized definition.",
+        "completion": "Ask for a narrowly constrained completion plan whose required syntax and behavior are explicit.",
+        "output_prediction": "Ask for a prediction of a short, self-contained Luau execution path and the reasoning behind it.",
+        "refactoring": "Ask for a refactoring plan that improves clarity without changing specified behavior."
+      },
+      "base_requirements": [
+        "Require valid Luau, not generic pseudocode.",
+        "State expected values, types, or state transitions clearly.",
+        "Ask the reviewer to distinguish syntax, semantics, and design concerns."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Limit the scenario to one language concept.",
+          "Require an explanation of the observable result."
+        ],
+        "intermediate": [
+          "Combine two related language concepts.",
+          "Require discussion of an edge case."
+        ],
+        "advanced": [
+          "Require reasoning about a stateful module, type boundary, or closure lifecycle.",
+          "Ask for tradeoffs and maintainability implications."
+        ]
+      },
+      "expected_evidence": [
+        "valid Luau reasoning",
+        "observable state or return-value explanation",
+        "syntax versus semantic diagnosis",
+        "bounded correction"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not use non-Luau syntax as the desired result.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "datastore_safety",
+      "failure_categories": [
+        "datastore_safety"
+      ],
+      "category": "roblox_persistence",
+      "concepts": [
+        "DataStoreService",
+        "pcall",
+        "UpdateAsync",
+        "server-side access",
+        "session state",
+        "retry policy",
+        "data validation"
+      ],
+      "scenarios": [
+        "saving player currency on leave",
+        "loading a quest-progress record",
+        "updating a daily reward claim",
+        "storing inventory unlocks",
+        "persisting a player settings profile",
+        "recording a leaderboard statistic",
+        "migrating a small profile format",
+        "handling a round reward save"
+      ],
+      "failure_modes": [
+        "a DataStore call has no pcall handling",
+        "client code is asked to access a DataStore",
+        "concurrent updates can overwrite each other",
+        "the save path accepts unvalidated values",
+        "the design retries blindly without a bounded policy",
+        "the player leaves while an update is unresolved"
+      ],
+      "task_forms": [
+        "security_review",
+        "requirements_implementation",
+        "bug_fix",
+        "architecture_design",
+        "runtime_reasoning",
+        "tradeoff_analysis"
+      ],
+      "form_instructions": {
+        "security_review": "Ask for a persistence review that checks server placement, validation, and failure handling.",
+        "requirements_implementation": "Ask for an implementation plan with pcall, data validation, and a clear save/load contract.",
+        "bug_fix": "Ask for a correction plan that addresses the stated persistence risk without promising lossless behavior under every outage.",
+        "architecture_design": "Ask for a bounded server-side session/persistence architecture with clear ownership of state.",
+        "runtime_reasoning": "Ask for a timeline of load, in-memory update, save, failure, and player-leave behavior.",
+        "tradeoff_analysis": "Ask for tradeoffs between simple save calls and conflict-aware update patterns."
+      },
+      "base_requirements": [
+        "Keep DataStore operations server-side.",
+        "Require pcall or an equivalent explicit error path.",
+        "Avoid promises that persistence is infallible."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Cover one load or save path and one error branch.",
+          "State why the client cannot be authoritative."
+        ],
+        "intermediate": [
+          "Cover validation and concurrent-update concerns.",
+          "Require a bounded retry or user-feedback decision."
+        ],
+        "advanced": [
+          "Cover session lifecycle, conflict risk, and idempotent reward behavior.",
+          "Require explicit tradeoffs for failures and shutdown timing."
+        ]
+      },
+      "expected_evidence": [
+        "server-only DataStore access",
+        "pcall error path",
+        "validated data shape",
+        "bounded persistence lifecycle reasoning"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not promise a retry pattern solves all persistence failures.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "lifecycle_performance",
+      "failure_categories": [
+        "performance_issue",
+        "lifecycle_or_cleanup_bug",
+        "code_quality_or_maintainability"
+      ],
+      "category": "roblox_runtime_quality",
+      "concepts": [
+        "RBXScriptConnection",
+        "Disconnect",
+        "task.wait",
+        "RunService",
+        "Debris",
+        "instance lifetime",
+        "profiling",
+        "module boundaries"
+      ],
+      "scenarios": [
+        "a respawning character controller",
+        "a temporary projectile effect",
+        "a proximity interaction system",
+        "a round manager with repeated joins",
+        "a GUI panel that opens and closes",
+        "an NPC target tracker",
+        "a per-frame visual update",
+        "a reusable tool controller"
+      ],
+      "failure_modes": [
+        "connections accumulate across respawns",
+        "a loop never yields",
+        "a synchronous remote call runs every frame",
+        "temporary instances are never cleaned up",
+        "event handlers remain after a UI closes",
+        "the module owns unclear global mutable state"
+      ],
+      "task_forms": [
+        "optimization",
+        "code_review",
+        "bug_fix",
+        "architecture_design",
+        "refactoring",
+        "runtime_reasoning"
+      ],
+      "form_instructions": {
+        "optimization": "Ask for a performance diagnosis that identifies measurable work, cadence, and a safe alternative.",
+        "code_review": "Ask for lifecycle-focused review of connection ownership, cleanup, and repeated activation.",
+        "bug_fix": "Ask for a correction plan that makes cleanup ownership explicit.",
+        "architecture_design": "Ask for a bounded architecture that assigns lifecycle responsibility to clear components.",
+        "refactoring": "Ask for a refactor plan improving readability and teardown without changing specified behavior.",
+        "runtime_reasoning": "Ask for a timeline of creation, connection, reuse, teardown, and reentry behavior."
+      },
+      "base_requirements": [
+        "Name the owner responsible for disconnecting or destroying resources.",
+        "Avoid busy loops and unbounded per-frame remote work.",
+        "State what occurs on respawn, close, destroy, or repeated activation."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Cover one connection or temporary instance lifecycle.",
+          "Name one observable symptom of the leak or cost."
+        ],
+        "intermediate": [
+          "Cover repeated activation and cleanup paths.",
+          "Compare event-driven and polling approaches."
+        ],
+        "advanced": [
+          "Cover ownership across multiple modules or player lifecycles.",
+          "Require a measurement or profiling plan before optimization claims."
+        ]
+      },
+      "expected_evidence": [
+        "explicit resource owner",
+        "cleanup or Disconnect path",
+        "bounded scheduling rationale",
+        "reentry lifecycle explanation"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not prescribe optimization without a stated observable concern.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "physics_reasoning",
+      "failure_categories": [
+        "incorrect_physics_reasoning"
+      ],
+      "category": "roblox_physics",
+      "concepts": [
+        "assemblies",
+        "Anchored",
+        "network ownership",
+        "constraints",
+        "collision",
+        "velocity",
+        "server authority"
+      ],
+      "scenarios": [
+        "a drivable vehicle",
+        "a knockback ability",
+        "a moving platform",
+        "a throwable object",
+        "a ragdoll transition",
+        "a physics-based door",
+        "a carried crate",
+        "a breakable prop"
+      ],
+      "failure_modes": [
+        "anchored and unanchored assumptions conflict",
+        "network ownership is treated as a security guarantee",
+        "a constraint is configured without considering its assembly",
+        "client-reported collision or damage is trusted",
+        "velocity and position updates fight each other",
+        "the design ignores cleanup after a temporary physics effect"
+      ],
+      "task_forms": [
+        "runtime_reasoning",
+        "subtle_bug_analysis",
+        "security_review",
+        "requirements_implementation",
+        "tradeoff_analysis",
+        "code_review"
+      ],
+      "form_instructions": {
+        "runtime_reasoning": "Ask for a physical-state timeline that names ownership, assembly state, and authoritative checks.",
+        "subtle_bug_analysis": "Ask for diagnosis of a plausible assembly or constraint interaction with stated assumptions.",
+        "security_review": "Ask for review of client reports versus server-owned collision, damage, or reward decisions.",
+        "requirements_implementation": "Ask for a constraint-aware implementation plan with cleanup and server authority requirements.",
+        "tradeoff_analysis": "Ask for tradeoffs among responsiveness, replication, and authoritative validation.",
+        "code_review": "Ask for review of a physics approach emphasizing unsupported assumptions and lifecycle risks."
+      },
+      "base_requirements": [
+        "Separate visual responsiveness from authoritative game outcomes.",
+        "State assembly, ownership, and cleanup assumptions.",
+        "Do not treat network ownership as proof that client data is trustworthy."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Focus on one assembly or collision concept.",
+          "State one client/server boundary."
+        ],
+        "intermediate": [
+          "Include a constraint or ownership interaction.",
+          "Require a cleanup or reset path."
+        ],
+        "advanced": [
+          "Require competing concerns such as replication, anti-cheat validation, and perceived responsiveness.",
+          "Ask for explicit edge-case reasoning."
+        ]
+      },
+      "expected_evidence": [
+        "assembly or constraint assumption",
+        "server-authoritative outcome",
+        "network ownership limitation",
+        "cleanup or reset condition"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not turn anti-cheat discussion into an exploit recipe.",
+        "Do not copy held-out evaluation wording."
+      ]
+    },
+    {
+      "id": "requirements_reasoning",
+      "failure_categories": [
+        "incomplete_requirements",
+        "instruction_following_failure",
+        "english_or_reasoning_quality",
+        "duplicate_or_split_contamination",
+        "other_observed_failure"
+      ],
+      "category": "english_and_engineering_reasoning",
+      "concepts": [
+        "requirements extraction",
+        "assumptions",
+        "acceptance criteria",
+        "edge cases",
+        "explanation",
+        "tradeoffs",
+        "review and correction"
+      ],
+      "scenarios": [
+        "a checkpoint system request",
+        "a game-pass purchase flow",
+        "a team selection feature",
+        "an NPC dialogue interaction",
+        "a coin collection feature",
+        "a round start timer",
+        "a reusable door component",
+        "a player settings feature"
+      ],
+      "failure_modes": [
+        "the response answers only part of a multi-step request",
+        "the response skips stated constraints",
+        "the explanation is too vague to validate",
+        "assumptions are hidden rather than stated",
+        "edge cases contradict the main recommendation",
+        "a review finding is acknowledged but not fixed"
+      ],
+      "task_forms": [
+        "requirements_implementation",
+        "code_review",
+        "bad_answer_critique",
+        "tradeoff_analysis",
+        "question_answer",
+        "diagnosis_correction"
+      ],
+      "form_instructions": {
+        "requirements_implementation": "Ask for a requirements-first plan with explicit acceptance criteria and assumptions.",
+        "code_review": "Ask for review that maps each finding back to a requirement and identifies missing evidence.",
+        "bad_answer_critique": "Ask for critique of an incomplete answer and a correction plan that makes omissions visible.",
+        "tradeoff_analysis": "Ask for a comparison with clear decision criteria rather than an unsupported preference.",
+        "question_answer": "Ask a focused engineering question that requires a concise answer plus stated assumption.",
+        "diagnosis_correction": "Ask for a before/after correction explanation that ties changes to verified requirements."
+      },
+      "base_requirements": [
+        "Make requirements and acceptance evidence explicit.",
+        "Require natural, grammatically correct English appropriate to the learner level.",
+        "State assumptions and distinguish them from verified facts."
+      ],
+      "difficulty_requirements": {
+        "beginner": [
+          "Use a small requirement list and one acceptance check.",
+          "Ask for a direct, plain-English explanation."
+        ],
+        "intermediate": [
+          "Require prioritized requirements and one edge case.",
+          "Require an explanation of at least one tradeoff."
+        ],
+        "advanced": [
+          "Require conflicting constraints, acceptance evidence, and a correction/review relationship.",
+          "Ask for precise scope boundaries and non-goals."
+        ]
+      },
+      "expected_evidence": [
+        "explicit requirement mapping",
+        "stated assumptions",
+        "testable acceptance criteria",
+        "clear correction or tradeoff rationale"
+      ],
+      "avoid": [
+        "Do not provide a final answer in the source brief.",
+        "Do not generate paraphrases that differ only in names or formatting.",
+        "Do not copy held-out evaluation wording."
+      ]
+    }
+  ]
+}

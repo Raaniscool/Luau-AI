@@ -1,6 +1,6 @@
 # DukeOTR project status
 
-**Updated:** 2026-09-19
+**Updated:** 2026-09-20
 
 DukeOTR is the permanent public project/model identity for this Roblox/Luau specialization.
 It is planned to derive from the existing pretrained `qwen3:4b` Ollama model and matching
@@ -46,6 +46,12 @@ names are technical provenance, not the public identity of a completed model.
   configured passing checks, bounded deeper high-risk repair/retest cycles, structured
   correctness/security/API/requirements/English/code-quality findings, source-attributed Code
   Book context, evaluation-wording isolation, and explicit no-auto-promotion policy.
+- A reproducible Training Factory sidecar layer: documented/validated candidate lineage ledgers,
+  a physically separate evidence-only failure database, controlled failure categories/severity,
+  measured (not invented) weakness statistics, deterministic human-review-required targeted
+  source-brief planning, explicit category/depth rationale, held-out-write/collision guards, and
+  planned-version metadata validation. It does not generate answers, auto-promote records, build
+  a corpus, or make a model claim.
 - A future-training handoff contract: versioned final datasets carry file hashes, an ignored
   transfer bundle can preserve data/config/provenance outside Git, and the guarded trainer
   rechecks its final-data manifest before real execution.

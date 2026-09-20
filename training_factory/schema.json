@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dukeotr.local/training-factory/schema-1.0.json",
+  "title": "DukeOTR Training Factory sidecar records",
+  "description": "Machine-readable sidecar contracts for evidence-bearing candidate lineage, failures, review-required targeted task briefs, and planned future version metadata. The canonical SFT candidate contract remains scripts/lib/schema.py.",
+  "type": "object",
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "difficulty": {
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ]
+    },
+    "taskDepth": {
+      "enum": [
+        "short",
+        "normal",
+        "deep"
+      ]
+    },
+    "severity": {
+      "enum": [
+        "minor",
+        "moderate",
+        "major",
+        "critical"
+      ]
+    },
+    "factoryTaskDraft": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "draft_id",
+        "status",
+        "split",
+        "title",
+        "task_type",
+        "difficulty",
+        "task_depth",
+        "category",
+        "user_request",
+        "requirements",
+        "concepts",
+        "expected_evidence",
+        "source",
+        "targeting",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "draft_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "status": {
+          "const": "draft_requires_human_review"
+        },
+        "split": {
+          "const": "train"
+        },
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "task_type": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "difficulty": {
+          "$ref": "#/$defs/difficulty"
+        },
+        "task_depth": {
+          "$ref": "#/$defs/taskDepth"
+        },
+        "category": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "user_request": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "kind",
+            "failure_evidence"
+          ]
+        },
+        "targeting": {
+          "type": "object",
+          "required": [
+            "failure_category",
+            "observed_failure_count",
+            "requires_human_approval"
+          ]
+        }
+      }
+    },
+    "failureRecord": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "failure_id",
+        "record_id",
+        "source_seed_id",
+        "task",
+        "producing_agent",
+        "answer",
+        "failure_categories",
+        "severity",
+        "review",
+        "correction",
+        "verification",
+        "version",
+        "provenance",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "failure_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "record_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "failure_categories": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "severity": {
+          "$ref": "#/$defs/severity"
+        }
+      }
+    },
+    "lineageLedgerRecord": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "ledger_id",
+        "record_id",
+        "task",
+        "builder",
+        "review",
+        "correction",
+        "failure_analysis",
+        "verification",
+        "quality",
+        "version",
+        "provenance",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "ledger_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "record_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "modelVersionRegistry": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "project",
+        "versions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0"
+        },
+        "project": {
+          "const": "DukeOTR"
+        },
+        "versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "status",
+              "notes"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/factoryTaskDraft"
+    },
+    {
+      "$ref": "#/$defs/failureRecord"
+    },
+    {
+      "$ref": "#/$defs/lineageLedgerRecord"
+    },
+    {
+      "$ref": "#/$defs/modelVersionRegistry"
+    }
+  ]
+}

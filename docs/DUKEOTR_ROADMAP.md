@@ -94,8 +94,10 @@ measurement—not by treating every generated candidate as training data.
    identifiers alone.
 3. Use small, deliberately different variants only where a brief can teach a genuinely
    distinct approach or learner need. Record provenance for every candidate.
-4. Review accepted/revised/rejected rates by topic, then author targeted new briefs for weak
-   areas. Do not extrapolate candidate count from prompt count as a quality claim.
+4. Review accepted/revised/rejected rates by topic, then use the evidence-only
+   [Training Factory](../training_factory/README.md) to record actual failures and create
+   human-review-required targeted new briefs for weak areas. Do not extrapolate candidate count
+   from prompt count as a quality claim or invent weakness statistics.
 5. Build a version candidate only after the final gate has sufficient breadth and a manifest;
    stop between 1,000 and 5,000 accepted examples when additional rows are no longer adding
    meaningful coverage or quality.

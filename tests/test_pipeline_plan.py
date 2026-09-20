@@ -56,6 +56,29 @@ class PipelinePlanTests(unittest.TestCase):
         self.assertIn("--strict", plan["commands"][-1])
         self.assertNotIn("skipped_stages", plan)
 
+    def test_dry_run_adds_factory_sidecars_only_with_explicit_opt_in(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "plan.json"
+            run_id = f"dukeotr_factory_{uuid4().hex}"
+            code = main(
+                [
+                    "--dry-run",
+                    "--record-factory-sidecars",
+                    "--run-id",
+                    run_id,
+                    "--report",
+                    str(report),
+                ]
+            )
+            self.assertEqual(code, 0)
+            plan = json.loads(report.read_text(encoding="utf-8"))
+        self.assertTrue(plan["factory_sidecars_requested"])
+        modules = [command[2] for command in plan["commands"]]
+        self.assertIn("scripts.build_training_ledger", modules)
+        self.assertIn("scripts.record_failures", modules)
+        self.assertIn("failure_data/", plan["stage_paths"]["failure_database"])
+        self.assertFalse(plan["final_dataset_build_requested"])
+
     def test_generator_preserves_an_existing_candidate_output_before_model_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "existing.jsonl"

@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "project": "DukeOTR",
+  "policy": [
+    "A registry entry is metadata, not evidence that a model, adapter, import, or release exists.",
+    "Statuses after planned_not_trained require paths and hashes for real artifacts; do not use placeholder hashes or invented scores.",
+    "The Windows Ollama qwen3:4b installation is an external local baseline and is never modified by this repository tooling.",
+    "Any future adapter training must use compatible Hugging Face Qwen/Qwen3-4B weights on a suitable CUDA or cloud machine, followed by held-out evaluation before a DukeOTR release claim."
+  ],
+  "versions": [
+    {
+      "id": "qwen3_4b_technical_base",
+      "kind": "technical_base",
+      "display_name": "Qwen3-4B technical base",
+      "status": "external_baseline_only",
+      "base_model": "qwen3:4b",
+      "source": "existing external Windows Ollama installation",
+      "dataset_version": null,
+      "adapter_artifact": null,
+      "evaluation_evidence": null,
+      "ollama_tag": "qwen3:4b",
+      "notes": [
+        "This entry does not inspect, download, modify, move, or replace the external local model.",
+        "It records technical provenance only."
+      ]
+    },
+    {
+      "id": "dukeotr_dataset_v1",
+      "kind": "dataset",
+      "display_name": "DukeOTR curated first corpus",
+      "status": "planned_not_built",
+      "base_model": null,
+      "dataset_version": "dukeotr_dataset_v1",
+      "dataset_manifest": null,
+      "evaluation_evidence": null,
+      "notes": [
+        "No final reviewed corpus manifest exists yet.",
+        "Candidate, failure, development, reference, and held-out evaluation artifacts remain separate."
+      ]
+    },
+    {
+      "id": "dukeotr_v1",
+      "kind": "adapter",
+      "display_name": "DukeOTR v1 planned adapter",
+      "status": "planned_not_trained",
+      "base_model": "Qwen/Qwen3-4B",
+      "dataset_version": "dukeotr_dataset_v1",
+      "adapter_artifact": null,
+      "training_manifest": null,
+      "evaluation_evidence": null,
+      "ollama_tag": "dukeotr-v1",
+      "notes": [
+        "No adapter, weights, training run, import, or held-out result exists in this repository.",
+        "The stable dukeotr tag remains reserved and uncreated."
+      ]
+    },
+    {
+      "id": "dukeotr",
+      "kind": "release",
+      "display_name": "DukeOTR stable release",
+      "status": "reserved_not_created",
+      "base_model": "Qwen/Qwen3-4B",
+      "dataset_version": "dukeotr_dataset_v1",
+      "adapter_artifact": null,
+      "evaluation_evidence": null,
+      "ollama_tag": "dukeotr",
+      "notes": [
+        "Reserved identity only; this is not an existing model or Ollama tag."
+      ]
+    }
+  ]
+}

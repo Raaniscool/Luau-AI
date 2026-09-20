@@ -56,6 +56,12 @@ Every candidate uses JSONL with this essential structure:
 Correction creates a **new** record with `parent_record_id`, correction round, and a
 snapshot of the findings that led to the repair. It never overwrites the original candidate.
 
+Factory-created source briefs may additionally carry explicit `category`, `task_depth`
+(`short`, `normal`, or `deep`), difficulty/depth rationale, targeting provenance, and eventual
+dataset-version metadata. These fields are optional for legacy briefs so the project does not
+invent labels retroactively; when supplied, schema/final-manifest gates preserve and report
+them.
+
 ## Required stages
 
 ### 1. Generation
@@ -105,6 +111,30 @@ findings, and review result. Corrected output is never trusted automatically: re
 
 `reject` is excluded by default. Use `--include-rejected` only when an expert deliberately
 wants an additional repair attempt.
+
+### 3a. Training Factory sidecars (never automatic promotion)
+
+After a pilot, `scripts.build_training_ledger` can create a local audit row that brings the
+original Builder answer, static/LLM/human reviewer evidence, correction output/explanation,
+failure categories, verification state, provenance, and version context together. Separately,
+`scripts.record_failures` records only candidates with actual stored static-fail,
+reviewer-revise/reject, duplicate, or split-isolation evidence in `failure_data/`. It preserves
+unknown agent/model identity as unknown and leaves rejected failures distinct from accepted
+candidates.
+
+`scripts.analyze_failures` calculates category/severity statistics from those stored rows only.
+`scripts.generate_targeted_briefs` refuses a target category with no observed rows and emits
+answer-free, deterministic, review-required source briefs into a separate local draft boundary.
+A named human reviewer must make an explicit decision before
+`scripts.promote_targeted_briefs` creates a separate curated source catalog. That source catalog
+is not appended automatically, and it must still take the normal generation, validation/review,
+correction, deduplication, and final-build path. See
+[`training_factory/README.md`](../training_factory/README.md) for exact commands and the
+separation contract.
+
+Factory gates check contracts, provenance, labels, correction/review links, duplicate/isolation
+signals, and unresolved critical flags. They do not independently prove every factual Roblox or
+Luau claim; authoritative sources and human review remain necessary.
 
 ### 4. Deduplication and split isolation
 

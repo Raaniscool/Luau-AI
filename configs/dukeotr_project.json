@@ -25,6 +25,12 @@
     "raw_data/dukeotr_phase1_luau_seed_tasks.jsonl"
   ],
   "held_out_evaluation": "evaluation_data/roblox_luau_eval.jsonl",
+  "training_factory": {
+    "config": "configs/training_factory.json",
+    "schema": "training_factory/schema.json",
+    "status": "implemented_sidecar_infrastructure_not_a_dataset_or_model",
+    "policy": "Failure records, lineage ledgers, targeted drafts, verified knowledge, Code Book material, development data, and held-out evaluation remain separate with no automatic promotion."
+  },
   "code_book": "code_book/roblox_luau_cards.jsonl",
   "model_identity_document": "docs/MODEL_IDENTITY.md",
   "invariants": [
@@ -32,6 +38,7 @@
     "DukeOTR is a specialization of the existing pretrained Qwen3-4B base, not a model trained from scratch.",
     "Natural, grammatically correct, varied English is required in curated examples; basic-English filler is not a training priority.",
     "Evaluation prompts, rubrics, baseline answers, and score records never become training input.",
+    "Training Factory statistics and targeted briefs may derive only from stored failure evidence, require human review, and never self-promote to source candidates or final training data.",
     "A RemoteEvent is not secure by itself; LocalScripts can call FireServer and the server validates all client-controlled input.",
     "No DukeOTR training, adapter, Ollama import, release alias, or improvement is claimed until its artifact and evaluation evidence exist."
   ],
