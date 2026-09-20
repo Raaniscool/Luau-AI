@@ -31,8 +31,30 @@ class PipelinePlanTests(unittest.TestCase):
         self.assertEqual(plan["stage"], "dukeotr_phase_1_pipeline")
         self.assertEqual(plan["seeds"], "raw_data/dukeotr_phase1_luau_seed_tasks.jsonl")
         self.assertEqual(plan["stage_paths"], stage_paths(run_id))
+        self.assertFalse(plan["final_dataset_build_requested"])
+        self.assertEqual(plan["commands"][-1][2], "scripts.deduplicate_examples")
+        self.assertEqual(plan["skipped_stages"][0]["stage"], "final_dataset_creation")
+
+    def test_dry_run_includes_final_build_only_with_explicit_opt_in(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "plan.json"
+            run_id = f"dukeotr_test_{uuid4().hex}"
+            code = main(
+                [
+                    "--dry-run",
+                    "--build-final-dataset",
+                    "--run-id",
+                    run_id,
+                    "--report",
+                    str(report),
+                ]
+            )
+            self.assertEqual(code, 0)
+            plan = json.loads(report.read_text(encoding="utf-8"))
+        self.assertTrue(plan["final_dataset_build_requested"])
         self.assertIn("--output-dir", plan["commands"][-1])
         self.assertIn("--strict", plan["commands"][-1])
+        self.assertNotIn("skipped_stages", plan)
 
     def test_generator_preserves_an_existing_candidate_output_before_model_preflight(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

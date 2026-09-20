@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from scripts.lib.schema import make_generated_record
+from scripts.lib.schema import STATIC_CHECKER_VERSION, make_generated_record
 
 
 def seed(seed_id: str = "train-test-001", prompt: str = "Show a secure server RemoteEvent pattern.") -> dict[str, Any]:
@@ -48,7 +48,12 @@ The client can display the outcome, but it must not decide the price, balance, o
 
 def reviewed_record(seed_id: str = "train-test-001", prompt: str = "Show a secure server RemoteEvent pattern.") -> dict[str, Any]:
     record = make_generated_record(seed(seed_id, prompt), good_answer(), generator={"kind": "test"}, variant=1)
-    record["quality"]["static"] = {"status": "pass", "issues": [], "checked_at": "2026-09-19T00:00:00Z"}
+    record["quality"]["static"] = {
+        "status": "pass",
+        "issues": [],
+        "checker": STATIC_CHECKER_VERSION,
+        "checked_at": "2026-09-19T00:00:00Z",
+    }
     record["quality"]["llm_review"] = {
         "status": "complete",
         "decision": "accept",

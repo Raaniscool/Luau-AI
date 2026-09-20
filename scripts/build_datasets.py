@@ -22,7 +22,7 @@ from typing import Any
 
 from scripts.lib.dedupe import cross_split_prompt_collisions
 from scripts.lib.io_utils import canonical_json, read_json, read_jsonl, sha256_text, text_from_message, utc_now, write_json_atomic, write_jsonl_atomic
-from scripts.lib.schema import quality_gate_status, record_fingerprint
+from scripts.lib.schema import STATIC_CHECKER_VERSION, quality_gate_status, record_fingerprint
 
 
 def parser() -> argparse.ArgumentParser:
@@ -191,7 +191,10 @@ def run(arguments: argparse.Namespace) -> int:
         "coverage": coverage(final),
         "final_record_fingerprints_sha256": sha256_text(canonical_json(sorted(record_fingerprint(item) for item in final))),
         "files": {"train": str(train_path), "validation": str(dev_path), "final": str(final_path)},
-        "quality_gate": "schema + static pass + recorded reviewer acceptance + unique deduplication + held-out collision exclusion",
+        "quality_gate": (
+            f"schema + {STATIC_CHECKER_VERSION} pass + recorded reviewer acceptance + "
+            "unique deduplication + held-out collision exclusion"
+        ),
     }
     manifest_path = output_dir / "dataset_manifest.json"
     write_json_atomic(manifest_path, manifest)

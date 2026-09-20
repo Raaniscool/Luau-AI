@@ -1,9 +1,10 @@
 """Convenience orchestrator for the DukeOTR staged data pipeline.
 
 It defaults to the Phase-1 Luau-fundamentals source catalog and performs generation →
-validation → correction → re-validation → deduplication → final build. Fine-tuning is
-deliberately not included: it requires a separately verified GPU/cloud environment and a
-recorded baseline.
+validation → correction → re-validation → deduplication. Final-dataset construction requires
+an explicit `--build-final-dataset` opt-in so a small pilot cannot become local training data
+without inspection. Fine-tuning is deliberately not included: it requires a separately
+verified GPU/cloud environment and a recorded baseline.
 """
 
 from __future__ import annotations
@@ -61,6 +62,11 @@ def parser() -> argparse.ArgumentParser:
         help="Safe stage-output identifier; choose a new one for each pilot rather than overwriting artifacts",
     )
     value.add_argument("--overwrite", action="store_true", help="Allow replacing prior artifacts for this exact --run-id")
+    value.add_argument(
+        "--build-final-dataset",
+        action="store_true",
+        help="Opt in to local final-dataset construction after reviewing a run; omitted by default for pilot safety",
+    )
     value.add_argument("--dry-run", action="store_true", help="Write a pipeline plan only")
     value.add_argument("--report", default=None, help="Defaults to reports/<run-id>.pipeline_run.json")
     return value
@@ -113,18 +119,30 @@ def run(arguments: argparse.Namespace) -> int:
         "limit": arguments.limit,
         "variants": arguments.variants,
         "baseline_requested": arguments.with_baseline,
+        "final_dataset_build_requested": bool(arguments.build_final_dataset),
         "stage_paths": paths,
-        "training_note": "This pipeline never invokes fine-tuning or assigns a final dataset version.",
+        "training_note": "This pipeline never invokes fine-tuning or assigns a final dataset version. Final-dataset construction is opt-in for pilot safety.",
     }
     if arguments.dry_run:
-        plan["commands"] = [
+        commands = [
             command("scripts.generate_examples", "--seeds", arguments.seeds, "--output", generated, "--model", arguments.model, "--limit", str(arguments.limit), "--variants", str(arguments.variants)),
             command("scripts.validate_examples", "--input", generated, "--output", validated, "--model", arguments.model),
             command("scripts.correct_examples", "--input", validated, "--output", corrected, "--model", arguments.model),
             command("scripts.validate_examples", "--input", corrected, "--output", corrected_validated, "--model", arguments.model),
             command("scripts.deduplicate_examples", "--input", validated, "--input", corrected_validated, "--output", deduplicated),
-            command("scripts.build_datasets", "--input", deduplicated, "--evaluation", arguments.evaluation, "--output-dir", training_dir, "--strict"),
         ]
+        if arguments.build_final_dataset:
+            commands.append(
+                command("scripts.build_datasets", "--input", deduplicated, "--evaluation", arguments.evaluation, "--output-dir", training_dir, "--strict")
+            )
+        else:
+            plan["skipped_stages"] = [
+                {
+                    "stage": "final_dataset_creation",
+                    "reason": "Pilot safety: rerun with --build-final-dataset only after reviewing the validated and deduplicated artifacts.",
+                }
+            ]
+        plan["commands"] = commands
         write_json_atomic(report_path, plan)
         print(f"Pipeline plan written to {report_path}; no model or training was run.")
         return 0
@@ -202,6 +220,19 @@ def run(arguments: argparse.Namespace) -> int:
         plan.update({"status": "failed", "results": results, "completed_at": utc_now()})
         write_json_atomic(report_path, plan)
         return 2
+    if not arguments.build_final_dataset:
+        results.append(
+            {
+                "stage": "final_dataset_creation",
+                "status": "skipped",
+                "reason": "Pilot safety: inspect accepted records and make an explicit --build-final-dataset decision before local dataset construction.",
+            }
+        )
+        plan.update({"status": "completed", "results": results, "completed_at": utc_now()})
+        write_json_atomic(report_path, plan)
+        print("Pipeline completed through deduplication; final-dataset creation was intentionally skipped for pilot safety.")
+        return 0
+
     build_args = command(
         "scripts.build_datasets",
         "--input", deduplicated,

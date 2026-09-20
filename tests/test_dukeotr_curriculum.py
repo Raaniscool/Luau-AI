@@ -43,6 +43,13 @@ class DukeOTRCurriculumTests(unittest.TestCase):
             guidance = TASK_TYPE_RESPONSE_GUIDANCE[seed["task_type"]]
             self.assertIn(guidance, generation_prompt(seed, variant=1))
 
+    def test_phase1_prompt_prevents_irrelevant_roblox_networking_and_carries_code_evidence(self) -> None:
+        seed = next(item for item in read_jsonl("raw_data/dukeotr_phase1_luau_seed_tasks.jsonl") if item["id"] == "dukeotr-phase1-001")
+        prompt = generation_prompt(seed, variant=1)
+        self.assertIn("Do not add Roblox services, RemoteEvents, client/server code", prompt)
+        self.assertIn("true or false in its Luau code", prompt)
+        self.assertIn("nil in its Luau code", prompt)
+
     def test_audit_rejects_evaluation_prompt_collision(self) -> None:
         seeds = list(read_jsonl("raw_data/dukeotr_phase1_luau_seed_tasks.jsonl"))
         evaluation = list(read_jsonl("evaluation_data/roblox_luau_eval.jsonl"))

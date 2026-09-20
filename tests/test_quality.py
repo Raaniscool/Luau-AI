@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import unittest
 
+from scripts.lib.io_utils import read_jsonl
 from scripts.lib.quality import parse_review, static_validate
-from scripts.lib.schema import quality_gate_status
+from scripts.lib.schema import STATIC_CHECKER_VERSION, make_generated_record, quality_gate_status
 from tests.helpers import good_answer, reviewed_record
 
 
@@ -69,6 +70,60 @@ class QualityTests(unittest.TestCase):
         record["messages"][2]["content"] = good_answer() + "\n```luau\nif player:IsAuthenticated() then\n\tprint('ok')\nend\n```"
         result = static_validate(record)
         self.assertTrue(any(item["code"] == "api.nonexistent_player_is_authenticated" for item in result["issues"]))
+
+    def test_client_context_cannot_connect_on_server_event_or_treat_localplayer_as_character(self) -> None:
+        record = reviewed_record()
+        record["messages"][2]["content"] = """This is deliberately invalid instructional code used to lock in the observed pilot regression.
+
+```luau
+-- ServerScriptService (authoritative)
+local PlayerScore = 0
+
+-- StarterPlayerScripts (client-side)
+local player = game.Players:GetPlayerFromCharacter(game.Players.LocalPlayer)
+local RemoteEvent = game.ReplicatedStorage:WaitForChild("ScoreUpdate")
+RemoteEvent:OnServerEvent:Connect(function()
+    PlayerScore = PlayerScore + 1
+end)
+```
+
+The validator must reject this rather than letting a reviewer accept it."""
+        result = static_validate(record)
+        codes = {item["code"] for item in result["issues"]}
+        self.assertEqual(result["status"], "fail")
+        self.assertEqual(result["checker"], STATIC_CHECKER_VERSION)
+        self.assertIn("network.onserverevent_client_context", codes)
+        self.assertIn("api.getplayerfromcharacter_localplayer", codes)
+
+    def test_current_static_checker_is_required_for_final_eligibility(self) -> None:
+        record = reviewed_record()
+        record["quality"]["static"]["checker"] = "static-v1"
+        accepted, reasons = quality_gate_status(record)
+        self.assertFalse(accepted)
+        self.assertIn("static_validation_checker_version_not_current", reasons)
+
+    def test_phase1_literal_code_evidence_is_enforced(self) -> None:
+        phase1_seed = next(item for item in read_jsonl("raw_data/dukeotr_phase1_luau_seed_tasks.jsonl") if item["id"] == "dukeotr-phase1-001")
+        record = make_generated_record(
+            phase1_seed,
+            """This deliberately incomplete beginner answer has a number and a string but omits the
+required boolean and nil literals from its code block.
+
+```luau
+local playerName = "Raani"
+local score = 0
+print(playerName, score)
+```
+
+It must not be treated as satisfying the authored source brief just because the prose mentions types.""",
+            generator={"kind": "test"},
+            variant=1,
+        )
+        result = static_validate(record)
+        codes = {item["code"] for item in result["issues"]}
+        self.assertEqual(result["status"], "fail")
+        self.assertIn("coverage.required_code_pattern_boolean_literal", codes)
+        self.assertIn("coverage.required_code_pattern_nil_literal", codes)
 
     def test_reviewer_policy_downgrades_low_security_acceptance(self) -> None:
         review = parse_review(

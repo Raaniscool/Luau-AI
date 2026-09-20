@@ -125,6 +125,11 @@ def generation_prompt(seed: dict[str, Any], variant: int) -> str:
         "requirements": seed["requirements"],
         "concepts": seed["concepts"],
         "expected_evidence": seed["expected_evidence"],
+        "required_code_evidence": [
+            check.get("message", check.get("id"))
+            for check in seed.get("required_code_patterns", [])
+            if isinstance(check, dict)
+        ],
         "avoid": seed.get("avoid", []),
         "variant": variant,
     }
@@ -135,10 +140,14 @@ UNTRUSTED TASK BRIEF (JSON):
 
 Requirements for this variant:
 - Answer the user request directly rather than restating the brief.
+- Satisfy every listed requirement and honor every item in `avoid`.
 - Follow this task-mode guidance: {mode_guidance}
-- Use a realistic Roblox scenario with meaningful names; vary structure and phrasing from
-  other examples.
-- Include only code that is necessary and make placement/authority boundaries clear.
+- Use a realistic context with meaningful names; vary structure and phrasing from other
+  examples. Do not add Roblox services, RemoteEvents, client/server code, or script placement
+  unless the source brief explicitly asks for Roblox behavior or those details materially
+  affect correctness. Keep pure Luau-fundamentals lessons pure.
+- Include only code that is necessary. When Roblox placement/authority is relevant, make the
+  boundary clear and keep sensitive state server-owned.
 - If the task asks for a review or bug fix, quote only small relevant excerpts and give a
   corrected implementation or concrete patch.
 - Check every expected-evidence item before returning the required JSON object.

@@ -143,36 +143,59 @@ python .\scripts\run_baseline.py --model qwen3:4b --output .\reports\evaluations
 a normal prose answer from being mistaken for a generated record; a malformed response is
 captured as a bounded diagnostic excerpt in the ignored generation report.
 
-First inspect the planned workflow without running Ollama:
+The JSON-envelope repair was verified by the one-item `dukeotr_phase1_pilot_002` run. Its
+single response nevertheless exposed real content-validation gaps: it put `OnServerEvent` in
+a client-labeled section, used `LocalPlayer` as a Character, and omitted requested value
+examples. Preserve that ignored pilot as a diagnostic artifact; **do not train on its local
+`training_data/dukeotr_phase1_pilot_002/` output**.
+
+After pulling the current static-checker update, first recheck that preserved response without
+calling a model. This writes a new diagnostic file rather than overwriting any evidence:
+
+```powershell
+python .\scripts\validate_examples.py `
+  --input .\generated_data\dukeotr_phase1_pilot_002.generated.jsonl `
+  --output .\validated_data\dukeotr_phase1_pilot_002.static_v2_recheck.jsonl `
+  --skip-llm-review
+
+Get-Content .\validated_data\dukeotr_phase1_pilot_002.static_v2_recheck.jsonl -Raw
+```
+
+The static result should fail on the client-side `OnServerEvent` and invalid
+`GetPlayerFromCharacter(LocalPlayer)` patterns. The current final-data gate also rejects an
+older static-checker version, so stale pilot validation cannot silently be rebuilt into data.
+
+Then inspect the next planned workflow without running Ollama:
 
 ```powershell
 # Defaults to raw_data/dukeotr_phase1_luau_seed_tasks.jsonl.
 # Use a new unique run id; it keeps ignored artifacts separate and will not overwrite prior work.
-python .\scripts\run_pipeline.py --model qwen3:4b --limit 1 --variants 1 --run-id dukeotr_phase1_plan_002 --dry-run
+python .\scripts\run_pipeline.py --model qwen3:4b --limit 1 --variants 1 --run-id dukeotr_phase1_plan_003 --dry-run
 ```
 
 After the static audits and base-model preflight pass, use a **fresh one-item** live pilot—not
-thousands of superficial variants. Do not reuse the prior failed `dukeotr_phase1_pilot_001`
-run ID:
+thousands of superficial variants. Do not reuse the failed `_001` or diagnostic `_002` run ID:
 
 ```powershell
 # Candidate generation and quality gates only; this is not a final dataset or a fine-tune.
-python .\scripts\run_pipeline.py --model qwen3:4b --limit 1 --variants 1 --run-id dukeotr_phase1_pilot_002
+python .\scripts\run_pipeline.py --model qwen3:4b --limit 1 --variants 1 --run-id dukeotr_phase1_pilot_003
 ```
 
 Inspect the ignored artifacts before deciding whether to scale up. The generation report should
-show `generated_records: 1` and an empty `failures` list before later-stage results are trusted:
+show `generated_records: 1` and an empty `failures` list, but that only proves structured
+transport succeeded—not that the answer is safe or complete:
 
 ```powershell
-Get-Content .\generated_data\dukeotr_phase1_pilot_002.generated.generation_report.json -Raw
-Get-Content .\generated_data\dukeotr_phase1_pilot_002.generated.jsonl -Raw
-Get-Content .\validated_data\dukeotr_phase1_pilot_002.validated.jsonl -Raw
-Get-Content .\reports\dukeotr_phase1_pilot_002.pipeline_run.json -Raw
+Get-Content .\generated_data\dukeotr_phase1_pilot_003.generated.generation_report.json -Raw
+Get-Content .\generated_data\dukeotr_phase1_pilot_003.generated.jsonl -Raw
+Get-Content .\validated_data\dukeotr_phase1_pilot_003.validated.jsonl -Raw
+Get-Content .\reports\dukeotr_phase1_pilot_003.pipeline_run.json -Raw
 ```
 
-If generation fails again, preserve the fresh run's report and inspect its
-`model_response_excerpt`, `model_response_sha256`, and `error`; do not overwrite the prior
-pilot or bypass the JSON contract.
+Inspect the static findings, reviewer decision, requested evidence, and actual Luau before
+trusting any later-stage result. If generation fails again, preserve the fresh run's report and
+inspect its `model_response_excerpt`, `model_response_sha256`, and `error`; do not overwrite a
+prior pilot or bypass the JSON contract.
 
 The pipeline preserves the stage sequence:
 
@@ -180,11 +203,13 @@ The pipeline preserves the stage sequence:
 2. `validate_examples.py` runs deterministic checks and structured review.
 3. `correct_examples.py` repairs revisable candidates while preserving parent provenance.
 4. Re-validation and `deduplicate_examples.py` reject unresolved or too-similar records.
-5. `build_datasets.py` permits only quality-gated, evaluation-isolated rows into final data.
+5. A pilot stops after deduplication by default. Only an explicit
+   `--build-final-dataset` decision invokes `build_datasets.py`, which still permits only
+   quality-gated, evaluation-isolated rows into local provisional data.
 
 A run ID writes separate ignored paths such as
-`generated_data/dukeotr_phase1_pilot_002.generated.jsonl` and
-`training_data/dukeotr_phase1_pilot_002/`. The orchestrator refuses to overwrite prior paths;
+`generated_data/dukeotr_phase1_pilot_003.generated.jsonl` and
+`training_data/dukeotr_phase1_pilot_003/`. The orchestrator refuses to overwrite prior paths;
 choose a new run ID or archive compatible material in `legacy_data/` before any deliberate
 overwrite.
 
@@ -196,7 +221,7 @@ and isolation gate passes.
 For explicit stage control, pick a unique output prefix deliberately:
 
 ```powershell
-$RunId = "dukeotr_phase1_manual_002"
+$RunId = "dukeotr_phase1_manual_003"
 python .\scripts\generate_examples.py --seeds .\raw_data\dukeotr_phase1_luau_seed_tasks.jsonl --model qwen3:4b --limit 8 --output ".\generated_data\$RunId.generated.jsonl"
 python .\scripts\validate_examples.py --input ".\generated_data\$RunId.generated.jsonl" --output ".\validated_data\$RunId.validated.jsonl" --model qwen3:4b
 python .\scripts\correct_examples.py --input ".\validated_data\$RunId.validated.jsonl" --output ".\validated_data\$RunId.corrected.jsonl" --model qwen3:4b

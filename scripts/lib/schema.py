@@ -6,12 +6,16 @@ runtime dependency so the data pipeline can run on the same Windows machine as O
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any
 
 from scripts.lib.io_utils import canonical_json, sha256_text, utc_now
 
 SCHEMA_VERSION = "1.0"
+# Bump this whenever deterministic static rules become materially stricter. A record reviewed
+# under an earlier checker must be revalidated before it can enter a final dataset.
+STATIC_CHECKER_VERSION = "static-v2"
 
 VALID_DIFFICULTIES = {"beginner", "intermediate", "advanced"}
 # Task types are instructional modes, not quality labels. Keeping them explicit lets the
@@ -59,6 +63,24 @@ def validate_seed(seed: dict[str, Any]) -> list[dict[str, str]]:
         value = seed.get(key)
         if not isinstance(value, list) or not value or not all(isinstance(item, str) and item.strip() for item in value):
             problems.append(issue("seed.list", f"Seed {key!r} must be a non-empty list of strings"))
+    required_code_patterns = seed.get("required_code_patterns")
+    if required_code_patterns is not None:
+        if not isinstance(required_code_patterns, list) or not required_code_patterns:
+            problems.append(issue("seed.required_code_patterns", "Optional required_code_patterns must be a non-empty list"))
+        else:
+            for index, check in enumerate(required_code_patterns, start=1):
+                if not isinstance(check, dict):
+                    problems.append(issue("seed.required_code_patterns", f"Code pattern {index} must be an object"))
+                    continue
+                check_id = check.get("id")
+                pattern = check.get("pattern")
+                if not isinstance(check_id, str) or not check_id.strip() or not isinstance(pattern, str) or not pattern:
+                    problems.append(issue("seed.required_code_patterns", f"Code pattern {index} needs non-empty id and pattern strings"))
+                    continue
+                try:
+                    re.compile(pattern)
+                except re.error as exc:
+                    problems.append(issue("seed.required_code_patterns", f"Code pattern {check_id!r} is invalid: {exc}"))
     if seed.get("split", "train") != "train":
         problems.append(issue("seed.split", "Generation seed split must be 'train'"))
     source = seed.get("source")
@@ -149,6 +171,7 @@ def make_generated_record(
             "topics": topics,
             "requirements": list(seed.get("requirements", [])),
             "expected_evidence": list(seed.get("expected_evidence", [])),
+            "required_code_patterns": deepcopy(seed.get("required_code_patterns", [])),
             "avoid": list(seed.get("avoid", [])),
             "source": deepcopy(seed.get("source", {})),
             "created_at": utc_now(),
@@ -217,8 +240,11 @@ def quality_gate_status(record: dict[str, Any]) -> tuple[bool, list[str]]:
     if structure:
         reasons.extend(f"schema:{item['code']}" for item in structure)
     quality = record.get("quality", {})
-    if quality.get("static", {}).get("status") != "pass":
+    static = quality.get("static", {})
+    if static.get("status") != "pass":
         reasons.append("static_validation_not_passed")
+    elif static.get("checker") != STATIC_CHECKER_VERSION:
+        reasons.append("static_validation_checker_version_not_current")
     if not reviewer_approved(record):
         reasons.append("no_recorded_accepting_reviewer")
     dedupe = quality.get("deduplication", {})

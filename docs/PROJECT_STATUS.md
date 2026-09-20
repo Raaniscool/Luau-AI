@@ -24,6 +24,8 @@ names are technical provenance, not the public identity of a completed model.
   the observed RemoteEvent scoring-contract failure.
 - A strict Ollama JSON Schema response contract for candidate generation, plus bounded raw
   response diagnostics when a model still produces malformed output.
+- Versioned deterministic static checks that invalidate older validation results after a
+  material rule change, rather than allowing a stale `static` pass into a later dataset build.
 - Planned identity/version configuration for `dukeotr_dataset_v1`, `dukeotr_v1`, versioned
   candidate tag `dukeotr-v1`, and stable release alias `dukeotr`; all remain explicitly
   planned.
@@ -39,10 +41,19 @@ base-model record scored **30.0/100** with verdict `fail`, no deterministic flag
 322.316-second judge elapsed time. This is a valid measurement of the untouched base model,
 not evidence of DukeOTR improvement.
 
-The first one-item live generation pilot (`dukeotr_phase1_pilot_001`) then failed before
-validation because the base model response was not parseable JSON. The code now requests the
-same kind of strict JSON Schema response contract used by the working scorer. A fresh pilot
-with a new run ID is still required before calling the generation repair live-verified.
+The first one-item live generation pilot (`dukeotr_phase1_pilot_001`) failed before validation
+because the base model response was not parseable JSON. The fresh `dukeotr_phase1_pilot_002`
+run then verified the schema repair: generation, review, deduplication, and the local pilot
+build all completed. That is evidence that the **structured-generation transport repair works**;
+it is not evidence that its generated answer is suitable training data.
+
+Manual inspection found that the single pilot answer incorrectly connected `OnServerEvent` in
+a client-labeled section and passed `LocalPlayer` to `GetPlayerFromCharacter`; it also did not
+actually show every requested basic type. This exposed a static-validation blind spot. The
+current static checker now blocks those directionality/API errors, requires a current checker
+version at deduplication/final-build time, and tightens the affected pure-Luau seed. Preserve
+the ignored pilot artifacts as diagnostic evidence, but do not use its old
+`training_data/dukeotr_phase1_pilot_002/` output for training or call it a dataset version.
 
 ## Deliberately not completed or claimed
 

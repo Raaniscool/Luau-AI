@@ -22,6 +22,7 @@ from typing import Any
 from scripts.lib.io_utils import read_json, read_jsonl, utc_now, write_json_atomic, write_jsonl_atomic
 from scripts.lib.ollama import OllamaClient, OllamaError
 from scripts.lib.quality import validate_record
+from scripts.lib.schema import STATIC_CHECKER_VERSION
 
 
 def parser() -> argparse.ArgumentParser:
@@ -107,6 +108,7 @@ def run(arguments: argparse.Namespace) -> int:
         "reviewer_model": None if arguments.skip_llm_review else model,
         "review_options": options,
         "review_minimums": minimums,
+        "static_checker": STATIC_CHECKER_VERSION,
         "llm_review_skipped": bool(arguments.skip_llm_review),
         **summary,
     }

@@ -66,7 +66,8 @@ registration preflight, and demands a JSON envelope containing the answer, cover
 and self-check claims. The request uses Ollama JSON Schema mode, not only a prose prompt, so
 small local models are constrained to the required envelope. Prompt variants are
 scenario-driven and source briefs use different task types and wording to avoid repetitive
-answers.
+answers. Pure Luau-fundamentals briefs explicitly forbid irrelevant Roblox services,
+RemoteEvents, and client/server placement details unless the source brief requires them.
 
 Generation failures are written to a report rather than converted into guessed records. If a
 response was received but cannot be parsed, the ignored report retains a bounded
@@ -78,9 +79,11 @@ No generated artifact is final data.
 `validate_examples.py` applies two independent layers:
 
 - **static checks:** schema, code-fence balance, hidden reasoning markup, obviously unsafe
-  dynamic/exploit APIs, common event API mistakes, RemoteEvent callback shape, busy loops,
-  DataStore error-handling warnings, potential client-side DataStore access, and advisory
-  requirement evidence checks;
+  dynamic/exploit APIs, common event API mistakes, labeled client/server RemoteEvent direction,
+  `LocalPlayer`/Character misuse, busy loops, DataStore error-handling warnings, potential
+  client-side DataStore access, source-authored required code evidence, and advisory
+  requirement evidence checks. The checker is versioned: a material rule update invalidates
+  older static passes until the record is revalidated;
 - **structured reviewer pass:** an Ollama prompt that separately judges API plausibility,
   security, requirement coverage, and pedagogy, returning `accept`, `revise`, or `reject`
   plus concrete findings.
@@ -104,10 +107,10 @@ wants an additional repair attempt.
 
 ### 4. Deduplication and split isolation
 
-`deduplicate_examples.py` considers only schema-valid, static-pass, accepting-reviewer
-records by default. It records normalized exact hashes and transparent token 3-gram
-Jaccard similarity. The default near-duplicate threshold is `0.82` and is saved in every
-artifact.
+`deduplicate_examples.py` considers only schema-valid, **current-checker** static-pass,
+accepting-reviewer records by default. It records normalized exact hashes and transparent
+token 3-gram Jaccard similarity. The default near-duplicate threshold is `0.82` and is saved
+in every artifact.
 
 It also compares **training prompts only** against held-out evaluation prompts at the
 stricter default threshold `0.93`. Conceptual overlap (for example, both sets testing
@@ -123,14 +126,16 @@ recorded and `build_datasets.py` excludes them again as a final defense.
 - `<output-dir>/validation.jsonl` — a small development split, distinct from the
   held-out evaluation suite.
 
-`run_pipeline.py` supplies a per-run directory such as
-`training_data/<new-run-id>/` and refuses to reuse it without an explicit reviewed overwrite.
-The previous failed `dukeotr_phase1_pilot_001` ID must not be reused. A final version name
-such as `dukeotr_dataset_v1` is reserved until its
-manifest and quality evidence actually exist.
+`run_pipeline.py` stops after deduplication for a pilot by default. It supplies a per-run
+`training_data/<new-run-id>/` directory only with explicit `--build-final-dataset` opt-in and
+refuses to reuse it without an explicit reviewed overwrite. The failed
+`dukeotr_phase1_pilot_001` ID and the quality-diagnostic `dukeotr_phase1_pilot_002` ID must
+not be reused. A final version name such as
+`dukeotr_dataset_v1` is reserved until its manifest and quality evidence actually exist.
 
-It refuses each record lacking any of these: valid schema, static pass, accepting LLM or
-human review, `unique` dedupe status, and evaluation isolation. A manifest records
+It refuses each record lacking any of these: valid schema, a pass from the current static
+checker, accepting LLM or human review, `unique` dedupe status, and evaluation isolation. A
+manifest records
 coverage, source path, rejected IDs/reasons, hashes, and split counts.
 
 ## Human review

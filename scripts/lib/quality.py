@@ -14,7 +14,7 @@ from scripts.lib.evaluation import (
 from scripts.lib.io_utils import extract_json_object, sha256_text, text_from_message, utc_now
 from scripts.lib.ollama import OllamaClient, OllamaError
 from scripts.lib.prompts import REVIEW_RESPONSE_SCHEMA, REVIEW_SYSTEM, review_prompt
-from scripts.lib.schema import VALID_REVIEW_DECISIONS, issue, validate_example_structure
+from scripts.lib.schema import STATIC_CHECKER_VERSION, VALID_REVIEW_DECISIONS, issue, validate_example_structure
 
 _CODE_FENCE_RE = re.compile(r"```(?:luau|lua)?\s*\n(.*?)```", re.IGNORECASE | re.DOTALL)
 _WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -33,6 +33,64 @@ def _finding(code: str, message: str, severity: str = "warning", *, evidence: st
 
 def _is_review_or_fix_task(record: dict[str, Any]) -> bool:
     return record.get("metadata", {}).get("task_type") in {"bug_fix", "code_review", "security_review"}
+
+
+def _contextual_remote_findings(code: str) -> list[dict[str, str]]:
+    """Detect directionally impossible RemoteEvent calls in clearly labeled code regions.
+
+    A response may legitimately show separate server and client snippets in one fence, so a
+    global search is too blunt. Instead, use explicit placement comments such as
+    ``-- ServerScriptService`` and ``-- StarterPlayerScripts`` as a narrow context boundary.
+    """
+    findings: list[dict[str, str]] = []
+    context: str | None = None
+    for line_number, line in enumerate(code.splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("--"):
+            comment = stripped[2:].casefold()
+            if any(marker in comment for marker in ("serverscriptservice", "server-side", "server script")):
+                context = "server"
+            elif any(marker in comment for marker in ("localscript", "starterplayerscripts", "startergui", "client-side")):
+                context = "client"
+            continue
+        if context == "client" and re.search(r"(?:\.|:)OnServerEvent\s*:\s*Connect\b", line, re.IGNORECASE):
+            findings.append(
+                _finding(
+                    "network.onserverevent_client_context",
+                    "OnServerEvent is handled by a server Script; a LocalScript/client section cannot connect it. "
+                    "Use FireServer for a client request or OnClientEvent for a server-to-client message.",
+                    "block",
+                    evidence=f"line {line_number}: {stripped}",
+                )
+            )
+        if context == "server" and re.search(r"\.OnClientEvent\s*:\s*Connect\b", line, re.IGNORECASE):
+            findings.append(
+                _finding(
+                    "network.onclientevent_server_context",
+                    "OnClientEvent is handled by a LocalScript; a server section should use FireClient or FireAllClients to send a message.",
+                    "block",
+                    evidence=f"line {line_number}: {stripped}",
+                )
+            )
+        if context == "client" and re.search(r"\.FireClient\s*\(", line, re.IGNORECASE):
+            findings.append(
+                _finding(
+                    "network.fireclient_client_context",
+                    "FireClient is server-side and requires a target Player; a client section cannot call it.",
+                    "block",
+                    evidence=f"line {line_number}: {stripped}",
+                )
+            )
+        if context == "server" and re.search(r"\.FireServer\s*\(", line, re.IGNORECASE):
+            findings.append(
+                _finding(
+                    "network.fireserver_server_context",
+                    "FireServer is a client-to-server request method; a server section cannot call it.",
+                    "block",
+                    evidence=f"line {line_number}: {stripped}",
+                )
+            )
+    return findings
 
 
 def static_validate(record: dict[str, Any], *, minimum_assistant_characters: int = 160) -> dict[str, Any]:
@@ -100,9 +158,53 @@ def static_validate(record: dict[str, Any], *, minimum_assistant_characters: int
         severity = "warning" if _is_review_or_fix_task(record) else "block"
         findings.append(_finding(code_name, message, severity))
 
+    # A few curated briefs define literal code evidence that is too important to leave to
+    # fuzzy keyword matching (for example, a beginner type lesson that must actually show
+    # nil and a boolean literal). These are authored source constraints, never model claims.
+    required_code_patterns = record.get("metadata", {}).get("required_code_patterns", [])
+    if isinstance(required_code_patterns, list):
+        for check in required_code_patterns:
+            if not isinstance(check, dict):
+                continue
+            check_id = check.get("id")
+            pattern = check.get("pattern")
+            if not isinstance(check_id, str) or not isinstance(pattern, str):
+                continue
+            try:
+                matched = re.search(pattern, code)
+            except re.error as exc:
+                findings.append(
+                    _finding(
+                        "metadata.invalid_required_code_pattern",
+                        f"Required code evidence pattern {check_id!r} is invalid: {exc}",
+                        "block",
+                    )
+                )
+                continue
+            if not matched:
+                message = check.get("message")
+                if not isinstance(message, str) or not message.strip():
+                    message = f"Required code evidence is missing: {check_id}"
+                findings.append(_finding(f"coverage.required_code_pattern_{check_id}", message, "block"))
+
     # Networking signatures are inspected primarily in code, so prose explaining an
     # anti-pattern does not itself trigger a false block.
     if code:
+        findings.extend(_contextual_remote_findings(code))
+        local_player_as_character = re.search(
+            r"\bGetPlayerFromCharacter\s*\(\s*game\.Players\.LocalPlayer\s*\)",
+            code,
+            re.IGNORECASE,
+        )
+        if local_player_as_character:
+            findings.append(
+                _finding(
+                    "api.getplayerfromcharacter_localplayer",
+                    "LocalPlayer is already a Player, not a Character; do not pass it to GetPlayerFromCharacter.",
+                    "block",
+                    evidence=local_player_as_character.group(0),
+                )
+            )
         # Parameter names vary (player, plr, sender), so only flag the unambiguous
         # no-parameter form here. The LLM reviewer assesses the first-argument semantics.
         missing_player_remote = re.search(
@@ -132,6 +234,8 @@ def static_validate(record: dict[str, Any], *, minimum_assistant_characters: int
         for pattern, code_name, message in (
             (r"\.OnServerEvent\s*\(", "api.remoteevent_subscription", "OnServerEvent is an event; use :Connect(...)"),
             (r"\.OnClientEvent\s*\(", "api.remoteevent_client_subscription", "OnClientEvent is an event; use :Connect(...)"),
+            (r":\s*OnServerEvent\b", "api.remoteevent_event_colon_indexing", "Access the OnServerEvent event with .OnServerEvent, then use :Connect(...)"),
+            (r":\s*OnClientEvent\b", "api.remoteevent_client_event_colon_indexing", "Access the OnClientEvent event with .OnClientEvent, then use :Connect(...)"),
             (r"\.OnServerInvoke\s*:\s*Connect", "api.remotefunction_subscription", "OnServerInvoke is assigned a callback, not connected"),
             (r"\bplayer\s*:\s*IsAuthenticated\s*\(", "api.nonexistent_player_is_authenticated", "Player:IsAuthenticated is not a Roblox Player API; use explicit server-side game eligibility checks"),
             (r"game:GetService\(\s*[\"'](?:PlayerService|ReplicatedStorageService|WorkspaceService)[\"']\s*\)", "api.unknown_service", "Code appears to use a non-existent Roblox service name"),
@@ -181,7 +285,7 @@ def static_validate(record: dict[str, Any], *, minimum_assistant_characters: int
         "status": "fail" if blockers else "pass",
         "issues": findings,
         "checked_at": utc_now(),
-        "checker": "static-v1",
+        "checker": STATIC_CHECKER_VERSION,
         "assistant_characters": len(answer),
         "code_block_count": len(blocks),
         "user_characters": len(user),
