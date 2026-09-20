@@ -12,6 +12,9 @@ license = {text = "MIT"}
 authors = [{name = "DukeOTR contributors"}]
 keywords = ["roblox", "luau", "ollama", "qwen", "lora", "qlora"]
 
+[project.scripts]
+dukeotr = "desktop_app.__main__:main"
+
 [project.optional-dependencies]
 training = [
   "torch>=2.5",
@@ -24,6 +27,9 @@ training = [
   "safetensors>=0.4",
 ]
 dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["desktop_app*", "scripts*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

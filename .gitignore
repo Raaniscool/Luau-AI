@@ -67,6 +67,13 @@ artifacts/
 wandb/
 output/
 
+# Native desktop runtime data and unverified local packaging output. The application defaults
+# to a user profile directory, but these guard against accidental project-local data/artifacts.
+desktop_app_data/
+build/
+dist/
+DukeOTR.spec
+
 # Training Factory sidecars are auditable local work products, not source material or final
 # datasets. Keep only their boundary documentation in Git; never accidentally commit answers,
 # reviews, failure prompts, targeted drafts, or analysis output.

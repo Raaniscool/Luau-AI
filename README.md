@@ -24,8 +24,9 @@ Read the current non-claims in [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md),
 [eight-month readiness assessment](docs/DUKEOTR_READINESS_ASSESSMENT.md), the staged curriculum
 in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), the explicit
 [DukeOTR identity/provenance policy](docs/MODEL_IDENTITY.md), the
-[Training Factory](training_factory/README.md), and the
-[training-machine runbook](docs/TRAINING_MACHINE_RUNBOOK.md).
+[Training Factory](training_factory/README.md), the
+[training-machine runbook](docs/TRAINING_MACHINE_RUNBOOK.md), and the native local
+[DukeOTR desktop application guide](docs/DESKTOP_APP.md).
 
 ## Execution boundary
 
@@ -43,6 +44,28 @@ in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), the explicit
 
 See [docs/TRAINING_MACHINE_RUNBOOK.md](docs/TRAINING_MACHINE_RUNBOOK.md) for the complete
 handoff, training, evaluation, and Ollama-packaging procedure.
+
+## Native local desktop application
+
+The repository also contains a real native Python desktop client under `desktop_app/`. It is the
+**DukeOTR application**, not a trained DukeOTR model. Its default selected Ollama tag remains
+truthfully identified as **Qwen3-4B (`qwen3:4b`)**. The client uses local Ollama HTTP model
+discovery and streamed chat, stores settings/conversations locally, and has Chat, Code, Review,
+Debug, Builder, and Security modes. It does not launch or scrape a terminal, pull models, train
+Qwen, call a cloud service, or pretend it is connected to Roblox Studio.
+
+On the Windows machine, perform the required existing-model preflight first, then start it from
+the repository root:
+
+```powershell
+ollama list
+python -m desktop_app
+```
+
+See [docs/DESKTOP_APP.md](docs/DESKTOP_APP.md) for source installation, architecture, provider
+behavior, storage/privacy, Builder/Reviewer/Fixer transition boundary, future Studio boundary,
+tests, limitations, and an **unverified future** Windows-packaging procedure. No `.exe` is
+claimed or included by this repository change.
 
 ## DukeOTR sequence
 
@@ -134,6 +157,7 @@ code_book/         Source-attributed Roblox/Luau cards (tracked; manual curation
 verified_knowledge/ Source-checked fast-answer entries/sources (tracked; separate from training)
 configs/           DukeOTR, pipeline, adapter-planning, and verified-knowledge configurations
 scripts/           Dependency-light pipeline, evaluation, and training entry points
+desktop_app/       Native local DukeOTR desktop UI, application core, provider boundary, storage
 models/            Ignored adapters/checkpoints/export artifacts
 reports/           Ignored baseline/evaluation/training reports
 ```
