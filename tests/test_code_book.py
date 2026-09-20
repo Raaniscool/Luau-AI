@@ -12,7 +12,7 @@ from scripts.lib.code_book import context_view, load_cards, search_cards, valida
 class CodeBookTests(unittest.TestCase):
     def test_source_checked_cards_are_structurally_valid(self) -> None:
         cards = load_cards("code_book/roblox_luau_cards.jsonl")
-        self.assertGreaterEqual(len(cards), 15)
+        self.assertGreaterEqual(len(cards), 25)
         for card in cards:
             errors = [finding for finding in validate_card(card) if finding["severity"] == "error"]
             self.assertEqual(errors, [], card["id"])
@@ -44,6 +44,25 @@ class CodeBookTests(unittest.TestCase):
         matches = search_cards(list(cards.values()), "pairs pcall table iteration", limit=5)
         self.assertIn("cb-luau-standard-library-iteration-errors", [match["card"]["id"] for match in matches])
 
+    def test_readiness_expansion_cards_are_source_checked(self) -> None:
+        cards = {card["id"]: card for card in load_cards("code_book/roblox_luau_cards.jsonl")}
+        expected = {
+            "cb-luau-values-scope-nil-operators",
+            "cb-luau-strings-math-randomness",
+            "cb-luau-typed-tables-unions-callbacks",
+            "cb-roblox-players-character-lifecycle",
+            "cb-client-server-replication-containers",
+            "cb-workspace-raycasting-physics-validation",
+            "cb-tween-runservice-frame-performance",
+            "cb-roblox-api-verification-hallucinations",
+        }
+        self.assertTrue(expected.issubset(cards))
+        for card_id in expected:
+            card = cards[card_id]
+            self.assertEqual(card["status"], "source_checked")
+            self.assertEqual(card["training_policy"], "manual_curation_only")
+            self.assertTrue(card["sources"])
+
     def test_audit_reports_complete_required_coverage(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / "audit.json"
@@ -51,7 +70,10 @@ class CodeBookTests(unittest.TestCase):
             self.assertEqual(code, 0)
             payload = json.loads(report.read_text(encoding="utf-8"))
             self.assertEqual(payload["status"], "pass")
+            self.assertEqual(payload["source_checked_card_count"], 25)
+            self.assertEqual(payload["minimum_source_checked_cards"], 25)
             self.assertEqual(payload["missing_required_domains"], {})
+            self.assertEqual(payload["missing_required_concepts"], {})
 
 
 if __name__ == "__main__":

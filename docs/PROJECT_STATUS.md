@@ -11,13 +11,18 @@ names are technical provenance, not the public identity of a completed model.
 
 - Storage rules that keep model weights, checkpoints, bulk generated data, local reports,
   and local Ollama artifacts out of Git by default.
-- The original 70-item broad, project-authored Roblox/Luau source-brief catalog and a
-  separate 24-item held-out evaluation suite.
-- A 45-item DukeOTR Phase-1 Luau-fundamentals source-brief catalog plus a static curriculum
+- An 80-item broad, project-authored Roblox/Luau source-brief catalog and a separate 24-item
+  held-out evaluation suite, plus an audited expansion plan toward a mature 100–300-test suite
+  that intentionally does not pretend the target is already met.
+- A 51-item DukeOTR Phase-1 Luau-fundamentals source-brief catalog plus a static curriculum
   audit covering required concepts, instructional modes, difficulty range, schema validity,
   duplicate prompts, and held-out prompt collisions.
-- A 15-card source-checked DukeOTR Code Book foundation, source policy, audit, and retrieval.
-  It is reference context and manual-curation input—not automatic training data.
+- A combined 131-brief source-portfolio audit that verifies explicit task-form evidence
+  (including critique, completion, subtle-bug, runtime, and insecurity analysis), conservative
+  task-type concentration, and wording-level held-out isolation.
+- A 25-card source-checked DukeOTR Code Book foundation, source policy, retrieval, and
+  granular coverage audit for the requested Luau/Roblox concept floor. It is reference context
+  and manual-curation input—not automatic training data.
 - Generation, validation/review, correction, deduplication, final-dataset, baseline,
   evaluation/scoring/comparison, hardware-preflight, and guarded adapter-training scripts.
 - A strict per-task JSON Schema path for the LLM evaluation scorer, with unit coverage for
@@ -29,6 +34,9 @@ names are technical provenance, not the public identity of a completed model.
 - Planned identity/version configuration for `dukeotr_dataset_v1`, `dukeotr_v1`, versioned
   candidate tag `dukeotr-v1`, and stable release alias `dukeotr`; all remain explicitly
   planned.
+- A bounded Builder → Reviewer → Fixer trace runner with a configurable multi-round limit,
+  structured correctness/security/API/requirements/English/code-quality findings, source-attributed
+  Code Book context, evaluation-wording isolation, and explicit no-auto-promotion policy.
 - A future-training handoff contract: versioned final datasets carry file hashes, an ignored
   transfer bundle can preserve data/config/provenance outside Git, and the guarded trainer
   rechecks its final-data manifest before real execution.
@@ -78,7 +86,8 @@ the ignored pilot artifacts as diagnostic evidence, but do not use its old
 - No `dukeotr_v1` adapter, `dukeotr-v1` versioned candidate, or `dukeotr` stable Ollama
   model has been created.
 - No DukeOTR capability improvement has been measured or claimed.
-- The future Builder → Reviewer → Fixer design is not an implemented autonomous loop.
+- The bounded Builder → Reviewer → Fixer trace runner is not an autonomous self-training loop,
+  not a source of automatic training-data promotion, and not evidence of a trained DukeOTR model.
 
 The Windows system is appropriate for local Ollama inference, auditing, curation, and
 assessment; actual 4B adapter training should occur on a suitable CUDA/cloud machine. See

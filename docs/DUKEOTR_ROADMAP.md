@@ -23,8 +23,9 @@ provenance only. See [MODEL_IDENTITY.md](MODEL_IDENTITY.md).
 
 ## Current repository foundation
 
-The repository already has a staged candidate pipeline, 70 broad project-authored briefs,
-24 held-out tasks, a source-checked Code Book POC, static safety gates, LoRA/QLoRA plans,
+The repository already has a staged candidate pipeline, 131 project-authored briefs across
+its Phase-1 and broad catalogs, 24 held-out tasks, a source-checked Code Book foundation,
+static safety gates, LoRA/QLoRA plans,
 and baseline/evaluation runners. It does **not** yet contain a completed reviewed corpus or
 a trained DukeOTR adapter.
 
@@ -74,7 +75,9 @@ The curriculum deliberately uses many instructional modes:
 - code review;
 - output prediction;
 - beginner, intermediate, and advanced explanations;
-- trade-off analysis; and
+- trade-off analysis;
+- bad-answer critique and completion;
+- subtle-bug analysis and runtime reasoning; and
 - refactoring/performance/lifecycle review.
 
 Run small pilots first; do not request thousands of superficial variable-renaming variants.
@@ -134,18 +137,23 @@ DataStores, scalable UI, matchmaking, trading, optimization, and large modular
 architectures. Complexity should increase only after the underlying authority and lifecycle
 patterns are well represented.
 
-## Later — Builder → Reviewer → Fixer
+## Builder → Reviewer → Fixer quality pilots
 
-The future loop is:
+The bounded implemented loop is:
 
 ```text
-DukeOTR Builder → Reviewer → Fixer → reviewed revision → measured evaluation
+isolated project-authored train brief
+  → Builder → static validator → independent Reviewer
+  → Fixer → static validator → independent Reviewer
+  → trace only; manual curation decision remains separate
 ```
 
-It is intentionally not an autonomous self-training loop today. First require structured
-traces, Code Book card revisions/citations, schema validation, human inspection points, and
-strict isolation of held-out evaluation material. Only accepted, provenance-preserving
-records can ever be proposed for manual training-data curation.
+It produces structured traces, Code Book card revisions/citations, schema validation,
+correction provenance, concrete category/severity findings, human inspection points, and a
+local wording-level isolation check before roles run. It remains intentionally non-autonomous:
+an accepted trace is not a training row, and it cannot self-promote into a final dataset. See
+[FUTURE_BUILDER_VERIFIER_REVIEWER.md](FUTURE_BUILDER_VERIFIER_REVIEWER.md) for the role
+contracts and safe small-pilot command.
 
 ## Fine-tuning hardware boundary
 

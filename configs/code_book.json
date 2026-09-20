@@ -5,6 +5,7 @@
   "allowed_statuses_for_default_retrieval": ["source_checked", "human_verified"],
   "required_source_host_suffixes": ["create.roblox.com", "luau.org"],
   "training_policy": "manual_curation_only",
+  "minimum_source_checked_cards": 25,
   "default_max_query_results": 5,
   "notes": [
     "The DukeOTR Code Book is reference context, not automatic fine-tuning data.",

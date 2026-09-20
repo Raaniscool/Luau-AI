@@ -116,7 +116,14 @@ def static_validate(record: dict[str, Any], *, minimum_assistant_characters: int
     if re.search(r"\b(?:TODO|TBD|INSERT\s+CODE\s+HERE)\b", answer, re.IGNORECASE):
         findings.append(_finding("answer.placeholder", "Answer includes an unresolved placeholder", "warning"))
 
-    should_contain_code = task_type in {"code_generation", "bug_fix", "natural_language_to_luau", "optimization"}
+    should_contain_code = task_type in {
+        "code_generation",
+        "bug_fix",
+        "completion",
+        "diagnosis_correction",
+        "natural_language_to_luau",
+        "optimization",
+    }
     blocks = code_blocks(answer)
     code = "\n".join(blocks)
     if should_contain_code and not blocks:

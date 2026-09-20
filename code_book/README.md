@@ -15,7 +15,8 @@ It is deliberately different from the fine-tuning corpus:
 ## Files
 
 - `schema.json` — versioned card contract.
-- `roblox_luau_cards.jsonl` — the small, source-checked proof-of-concept card set.
+- `roblox_luau_cards.jsonl` — the 25-card source-checked foundation; the strict audit also
+  checks a granular DukeOTR readiness coverage matrix.
 - `sources.md` — primary documentation source policy and links.
 
 ## Commands

@@ -20,7 +20,7 @@ class DukeOTRCurriculumTests(unittest.TestCase):
             payload = json.loads(report.read_text(encoding="utf-8"))
         self.assertEqual(payload["project_name"], "DukeOTR")
         self.assertEqual(payload["status"], "pass")
-        self.assertEqual(payload["source_brief_count"], 45)
+        self.assertEqual(payload["source_brief_count"], 51)
         self.assertEqual(payload["identity_errors"], [])
         self.assertEqual(payload["missing_concepts"], [])
         self.assertEqual(payload["missing_instructional_modes"], [])
@@ -29,7 +29,7 @@ class DukeOTRCurriculumTests(unittest.TestCase):
 
     def test_catalog_records_and_requested_modes_are_schema_supported(self) -> None:
         seeds = list(read_jsonl("raw_data/dukeotr_phase1_luau_seed_tasks.jsonl"))
-        self.assertEqual(len(seeds), 45)
+        self.assertEqual(len(seeds), 51)
         self.assertTrue(set(REQUIRED_INSTRUCTIONAL_MODES).issubset(VALID_TASK_TYPES))
         for seed in seeds:
             self.assertEqual(validate_seed(seed), [], seed["id"])

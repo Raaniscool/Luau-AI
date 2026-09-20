@@ -3,9 +3,10 @@
 ## Repository assessment
 
 The existing repository was inspected before this staged expansion. It already contains a
-foundation pipeline, a broad 70-brief source catalog, 24 held-out evaluation tasks, a
-15-card Code Book source-checked foundation, adapter configurations, and quality-gate tests. It does
-not contain a completed reviewed corpus, a trained adapter, or a measured DukeOTR model.
+foundation pipeline, a combined 131-brief source portfolio (80 broad and 51 Phase-1), 24 held-out evaluation tasks, a
+25-card Code Book source-checked foundation with granular coverage auditing, adapter configurations,
+and quality-gate tests. It does not contain a completed reviewed corpus, a trained adapter, or a
+measured DukeOTR model.
 
 The historical repository directory/name may remain in place; **DukeOTR** is the required
 product/model identity. Compatible historic inputs remain in place rather than being deleted;
@@ -17,8 +18,8 @@ DukeOTR is the public identity of a specialization derived from the existing pre
 `qwen3:4b` / `Qwen/Qwen3-4B` base. It does not train English or a language model from scratch.
 The Qwen references are required technical provenance, not the finished assistant's public
 name. The current implementation target is a clean, staged curriculum/data/evaluation
-foundation—not a premature autonomous Builder/Reviewer/Fixer system and not a claimed
-fine-tune.
+foundation plus a bounded trace-producing Builder/Reviewer/Fixer quality pilot—not an
+autonomous self-training system and not a claimed fine-tune.
 
 ## Staged deliverables
 
@@ -94,12 +95,15 @@ synthetic prompts.
   `dukeotr-v1`; only after held-out evaluation and human release approval may it receive the
   stable public alias `dukeotr`. Never commit model binaries by default.
 
-### 6. Future Builder → Reviewer → Fixer
+### 6. Bounded Builder → Reviewer → Fixer quality loop
 
-Keep the current role-contract configuration as a future seam. Before implementing an active
-loop, require structured traces, citation-aware Code Book changes, approval checkpoints,
-provenance-preserving revisions, and strict evaluation isolation. It must not automatically
-promote its own outputs to SFT data.
+`run_builder_reviewer_fixer.py` now supplies a deliberately bounded pilot for one isolated
+train brief. It records schema-validated Builder/Reviewer/Fixer roles, deterministic findings,
+structured correctness/security/API/requirements/English/code-quality failures, source-attributed
+Code Book context, provenance-preserving revisions, and a local held-out wording-isolation
+check. It never automatically promotes output to SFT data. Continue with human inspection of
+small traces before allowing any separate candidate through the normal validation,
+deduplication, and final-dataset gates.
 
 ## Quality gates
 

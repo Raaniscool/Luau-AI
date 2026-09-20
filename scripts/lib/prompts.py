@@ -96,18 +96,25 @@ Return exactly one JSON object with this shape:
 # supplied by the curated seed.
 TASK_TYPE_RESPONSE_GUIDANCE: dict[str, str] = {
     "architecture_design": "Describe boundaries, responsibilities, and trade-offs before any illustrative code.",
+    "api_misuse_diagnosis": "Name the exact API/context misuse, verify the replacement against the brief or Code Book, and show the smallest corrected form.",
     "api_usage": "Use only APIs named or supported by the brief/Code Book; state placement or lifecycle context when material.",
+    "bad_answer_critique": "Identify each harmful or inaccurate claim in the proposed answer, explain the consequence, then replace it with precise guidance.",
     "bug_fix": "Identify the concrete failure first, then show a minimal correction and explain why it works.",
     "code_explanation": "Explain the existing idea in a learner-appropriate order before proposing optional improvements.",
     "code_generation": "Provide a complete but proportionate implementation with assumptions and a short usage example when useful.",
     "code_review": "Give prioritized, actionable findings and a concrete corrected pattern; do not merely restate the code.",
+    "completion": "Complete only the missing behavior, preserve the stated surrounding contract, and name any assumptions required by the blank.",
+    "diagnosis_correction": "Diagnose the observable failure before presenting a targeted correction and a way to check it.",
+    "insecurity_analysis": "Trace which client-controlled value or misplaced trust boundary makes the design insecure, then specify server-owned remediation.",
     "natural_language_to_luau": "Translate the stated behavior into code while naming assumptions that were not specified.",
     "optimization": "Establish the likely cost or lifecycle issue and preserve correctness/authority while proposing a measured improvement.",
     "output_prediction": "State the predicted output clearly, then give a concise explanation of the relevant evaluation and scope rules.",
     "question_answer": "Answer the question directly in natural teaching prose, then use only the smallest helpful example.",
     "refactoring": "Preserve documented behavior, explain the readability/maintainability trade-off, and show the focused revision.",
     "requirements_implementation": "Map each material requirement to a visible part of the solution and call out deliberate edge-case behavior.",
+    "runtime_reasoning": "Walk through lifecycle, scheduling, scope, or state transitions in order and distinguish guaranteed behavior from assumptions.",
     "security_review": "Treat every client-controlled value as untrusted and state exact server-side validation/authority fixes.",
+    "subtle_bug_analysis": "Expose the non-obvious edge case, explain why a superficial fix fails, and give a focused robust correction.",
     "tradeoff_analysis": "Compare alternatives against stated constraints and make a qualified recommendation rather than declaring one universal answer.",
 }
 

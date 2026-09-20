@@ -10,16 +10,23 @@ are especially important for Roblox/Luau reliability. It is intentionally separa
 - **model output** — a generated answer is not a source; and
 - **live Studio testing** — a source citation does not prove a game's specific code works.
 
-The current source-checked foundation stores 15 cards in
+The current source-checked foundation stores **25 cards** in
 `code_book/roblox_luau_cards.jsonl`. The cards cover:
 
-- RemoteEvents, RemoteFunctions, client/server responsibility, and security;
-- Luau types, tables, functions, control flow, standard-library iteration/type/error
-  behavior, services, Instances, events/connections, and ModuleScripts/OOP;
-- UI, DataStores, inventories, currencies, shops, combat, Tools, NPCs, rounds, and
-  matchmaking;
-- developer-product receipt handling; and
+- Luau values/scope/nil/operators/control flow/loops/functions/returns, tables, strings,
+  math/randomness, runtime checks, annotations, typed tables, unions, callbacks, errors,
+  `pcall`, and `assert`;
+- ModuleScripts/`require`, Instances/hierarchy/services, players/characters, GUIs/input,
+  event connections/closures, and refactoring;
+- RemoteEvents, RemoteFunctions, client/server placement, replication, server authority,
+  security, DataStores, raycasting/physics checks, TweenService/RunService, and performance;
+- UI, inventories, currencies, shops, combat, Tools, NPCs, rounds, matchmaking, and
+  developer-product receipt handling; and
 - debugging, optimization, common mistakes, and hallucination-resistant API review.
+
+`audit_code_book.py --strict` also reports a granular concept-to-card matrix and enforces a
+25-card source-checked floor. This is a provenance/coverage floor, not a claim that a card set
+or model has achieved practical mastery.
 
 ## Reliability model
 
@@ -74,8 +81,10 @@ Reviewer checks against card pitfalls/checklists and current official docs
 Fixer revises only concrete findings
 ```
 
-A future model prompt should identify card IDs/revisions used and explicitly say that cards
-are reference context rather than infallible truth.
+The implemented bounded Builder/Reviewer/Fixer trace records selected card IDs/revisions and
+keeps cards as reference context rather than infallible truth. See
+[FUTURE_BUILDER_VERIFIER_REVIEWER.md](FUTURE_BUILDER_VERIFIER_REVIEWER.md) for its deliberate
+non-promotion and held-out-isolation rules.
 
 ## Baseline RemoteEvent regression guard
 

@@ -11,14 +11,15 @@ identity of a finished specialized assistant.
 > identity is **DukeOTR**.
 
 > **Current status — foundation and curriculum work only; no DukeOTR adapter is trained.**
-> The repository contains 70 broad project-authored Roblox/Luau source briefs, a dedicated
-> 45-brief DukeOTR Phase-1 Luau-fundamentals curriculum, a 24-task held-out evaluation
-> suite, and a 15-card source-checked Code Book foundation. None of those source
-> briefs is a completed training dataset. Generated candidates, accepted records, adapters,
-> and model claims require the documented gates and evidence.
+> The repository contains 80 broad project-authored Roblox/Luau source briefs, a dedicated
+> 51-brief DukeOTR Phase-1 Luau-fundamentals curriculum, a 24-task held-out evaluation
+> suite, and a 25-card source-checked Code Book foundation with a granular coverage audit.
+> None of those source briefs is a completed training dataset. Generated candidates, accepted
+> records, adapters, and model claims require the documented gates and evidence.
 
 Read the current non-claims in [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md), the
-staged curriculum in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), the explicit
+[eight-month readiness assessment](docs/DUKEOTR_READINESS_ASSESSMENT.md), the staged curriculum
+in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), the explicit
 [DukeOTR identity/provenance policy](docs/MODEL_IDENTITY.md), and the
 [training-machine runbook](docs/TRAINING_MACHINE_RUNBOOK.md).
 
@@ -49,10 +50,10 @@ Qwen3-4B technical base
   → held-out evaluation → approved DukeOTR release alias (dukeotr)
 ```
 
-The Builder/Reviewer/Fixer loop is a future interface boundary, not an implemented autonomous
-self-training system. The present work intentionally starts with a high-quality curriculum,
-provenance, validation, review, correction, deduplication, final-dataset gates, and an
-untouched evaluation boundary.
+The Builder/Reviewer/Fixer loop is now a bounded, trace-producing quality pilot for one
+isolated train brief at a time; it is not an autonomous self-training or auto-promotion system.
+The present work intentionally keeps curriculum, provenance, validation, review, correction,
+deduplication, final-dataset gates, and the held-out evaluation boundary separate.
 
 ## What is included
 
@@ -64,9 +65,12 @@ untouched evaluation boundary.
   conditionals, numeric/generic/while/repeat-until loops, functions, tables, strings,
   math/randomness, runtime checks, annotations, modules, errors, events/connections,
   closures, and callbacks.
-- Multiple instructional modes: Q&A, natural language → code, code explanation, broken-code
-  repair, requirements implementation, review, output prediction, refactoring, and trade-off
-  analysis across beginner, intermediate, and advanced briefs.
+- Multiple instructional modes: implementation, Q&A, natural language → code, code
+  explanation, output prediction, diagnosis/correction, bad-answer critique, review,
+  security/insecurity analysis, refactoring, optimization, API-misuse diagnosis, architecture,
+  requirements, trade-offs, completion, subtle-bug analysis, and runtime reasoning across
+  beginner, intermediate, and advanced briefs. `audit_source_portfolio.py --strict` verifies
+  the combined source-brief form evidence and held-out wording isolation.
 - A staged, auditable workflow:
   **generation → validation → review → correction → re-validation → deduplication → final dataset**.
 - A 24-task held-out rubric suite and original base-model baseline path that never become
@@ -232,7 +236,7 @@ choose a new run ID or archive compatible material in `legacy_data/` before any 
 overwrite.
 
 The meaningful first corpus target is **1,000–5,000 high-quality reviewed examples**, not a
-bulk dump. The 45 dedicated Phase-1 briefs plus the prior broad catalog are curated starting
+bulk dump. The 51 dedicated Phase-1 briefs and 80 broader briefs are curated starting
 points; generated output counts do not count toward a dataset version until every quality
 and isolation gate passes.
 
@@ -253,8 +257,8 @@ than treating a missing file as a final dataset. `run_pipeline.py` handles that 
 
 ## Code Book and Roblox security
 
-The Code Book is source-attributed reference context for future Builder/Reviewer/Fixer work.
-It is not silently copied into SFT data. Audit or query it without calling a model:
+The Code Book is source-attributed reference context for the bounded Builder/Reviewer/Fixer
+quality loop. It is not silently copied into SFT data. Audit or query it without calling a model:
 
 ```powershell
 python .\scripts\audit_code_book.py --strict

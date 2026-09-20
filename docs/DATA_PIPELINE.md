@@ -9,21 +9,22 @@ remains expected in every curated answer; Qwen is preserved as technical provena
 
 The repository has two tracked project-authored source-brief catalogs:
 
-- `raw_data/dukeotr_phase1_luau_seed_tasks.jsonl` has 45 dedicated Luau-fundamentals
+- `raw_data/dukeotr_phase1_luau_seed_tasks.jsonl` has 51 dedicated Luau-fundamentals
   briefs. `scripts/audit_dukeotr_curriculum.py --strict` verifies its required concepts,
   instructional modes, difficulty range, duplicate prompts, and held-out collisions.
-- `raw_data/roblox_luau_seed_tasks.jsonl` has 70 broad Roblox/Luau briefs across
+- `raw_data/roblox_luau_seed_tasks.jsonl` has 80 broad Roblox/Luau briefs across
   beginner, intermediate, and advanced work. `scripts/audit_catalog.py --fail-on-missing`
   verifies its broader coverage themes and exact duplicate source briefs.
-
-The broad catalog currently includes 23 code-generation briefs, 14 architecture briefs,
-8 bug fixes, 6 security reviews, 6 explanations, 5 API tasks, 4 code reviews, 2
-optimizations, and 2 natural-language conversions; its difficulty distribution is 14
-beginner, 29 intermediate, and 27 advanced. A separate 24-task held-out evaluation file is
-maintained throughout.
+- `scripts/audit_source_portfolio.py --strict` audits the combined **131** project-authored
+  briefs: source floor, task-type concentration, exact duplicate prompts, held-out wording
+  collisions, and evidence for implementation, explanation, output prediction,
+  diagnosis/correction, bad-answer critique, review, security/insecurity analysis, refactor,
+  optimization, API misuse, architecture, requirements, trade-offs, completion, subtle bugs,
+  and runtime reasoning.
 
 These counts describe **source briefs**, not a falsely claimed completed training corpus.
-Each brief can produce one or more diverse, reviewed candidates.
+Each brief can produce one or more diverse, reviewed candidates only after the documented
+quality gates.
 
 ## Canonical candidate shape
 

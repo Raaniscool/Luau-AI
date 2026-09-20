@@ -25,16 +25,25 @@ and Fixer roles a small set of independently auditable facts and implementation 
    baseline errors: clients **can** call `FireServer`, and a RemoteEvent does **not** make
    client input secure.
 
-## Next curated expansion: Phase-1 fundamentals
+## Curated expansion status and next batches
 
-The original 12-card starter set has been extended with three source-checked Phase-1 cards
-for control flow/function contracts, standard-library iteration/type/error behavior, and
-event-connection lifecycle. Before using Code Book context for the full Phase-1 curriculum,
-add narrowly scoped cards for the remaining topics in small,
-source-checked batches: values/scope/operators/control flow; loops; functions/returns;
-table shapes and iteration; strings/math/randomness; runtime type checks; annotations and
-strictness; ModuleScript/`require` boundaries; error/result contracts; and
-connections/callback/closure lifecycle.
+The original 12-card starter set is now a **25-card source-checked foundation**. It includes
+narrow cards for values/scope/nil/operators; strings/math/randomness; annotations, typed
+tables, unions, and callbacks; players/character lifecycle; GUI/input boundaries;
+client/server replication containers; raycasting/physics validation; TweenService/RunService
+performance; API-hallucination defenses; and Instance/hierarchy/service access. The older
+control-flow/function, standard-library/error, event-connection, module, DataStore, remote,
+and game-system cards remain preserved and have explicit granular-domain tags where needed.
+
+`audit_code_book.py --strict` now checks an explicit coverage matrix for the requested Luau
+and Roblox concepts and enforces a 25-card source-checked floor. It records card IDs for every
+row so a missing concept is actionable instead of hidden behind a broad "Roblox APIs" label.
+
+Next batches should deepen—not merely rename—the shallowest rows: exact API/version changes,
+RaycastParams edge cases, DataStore retry/session behavior, UI accessibility/input modes,
+physics/network-ownership trade-offs, and realistic debugging/refactoring cases. Add these in
+small source-checked batches and raise the configured floor only with a documented curation
+reason.
 
 Each new card should make its **purpose**, syntax/pattern, practical use, common mistakes,
 reviewer checks, related APIs/concepts, appropriate difficulty, and any security caveat

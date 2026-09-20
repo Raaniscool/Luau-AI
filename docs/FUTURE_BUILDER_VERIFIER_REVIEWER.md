@@ -1,80 +1,117 @@
-# DukeOTR future Builder → Reviewer → Fixer architecture
+# DukeOTR Builder → Reviewer → Fixer quality loop
 
-This is a **future interface contract**, not a prematurely implemented autonomous system.
-The curriculum, data-quality gates, baseline, and held-out evaluation path must work first.
+> Historical filename retained for links. The repository now implements a **bounded,
+> trace-producing quality-loop orchestrator**; it is not an autonomous agent, a training-data
+> promotion path, or evidence that DukeOTR has been trained.
 
-## Intended loop
+## What is implemented
+
+`configs/builder_verifier_reviewer.json` is the machine-readable contract and
+`python -m scripts.run_builder_reviewer_fixer` executes one carefully selected **train** brief
+through these roles:
 
 ```text
-User request
+project-authored train brief
+  ↓  (held-out wording isolation check; no evaluation text reaches a role)
+Builder → deterministic static validator → independent Reviewer
+  ↓ revise only, bounded by configured round count
+Fixer → deterministic static validator → independent Reviewer
   ↓
-DukeOTR Builder produces solution + assumptions + test/security notes
-  ↓
-DukeOTR Reviewer checks requirements, Roblox API usage, authority boundaries, and code risks
-  ↓
-DukeOTR Fixer applies concrete review findings
-  ↓
-Reviewed revision + visible caveats
-  ↓
-Measured held-out evaluation (never training input)
+trace artifact: accepted-for-manual-review | needs-human-review | rejected | error
 ```
 
-`configs/builder_verifier_reviewer.json` retains its historical filename but now defines the
-first machine-readable Builder/Reviewer/Fixer seam. It is not an orchestrator and does not
-run models, write training data, or auto-promote a revision.
+The default is two total candidate rounds (one Builder round and, if needed, one Fixer round).
+The configuration allows up to four. Each run records source hashes, model/options, Code Book
+card revisions and source URLs, static findings, structured reviewer findings, policy
+overrides, fixer provenance, terminal status, and a clear non-promotion statement.
+
+An accepted trace means only that this bounded loop reached its configured automated quality
+policy. It is **not** added to `training_data/`, it is not a final dataset row, it is not an
+adapter, and it is not a DukeOTR model release. The ordinary validation, deduplication,
+evaluation-isolation, human-review, and explicit dataset-build gates still apply separately.
+
+## Safe usage
+
+Plan a trace with no model or Ollama preflight:
+
+```powershell
+python -m scripts.run_builder_reviewer_fixer `
+  --seed-id dukeotr-phase1-001 `
+  --dry-run `
+  --output reports\brf-phase1-001.plan.json
+```
+
+On the Windows machine only, after confirming the existing base tag with `ollama list`, a
+small deliberate pilot can use the current base model:
+
+```powershell
+python -m scripts.run_builder_reviewer_fixer `
+  --seed-id dukeotr-phase1-001 `
+  --model qwen3:4b `
+  --max-rounds 2 `
+  --output reports\brf-phase1-001.trace.json
+```
+
+The command performs the project’s exact local model-presence preflight before inference. It
+never downloads, modifies, replaces, trains, exports, or imports a model. Do not turn this
+into bulk laptop generation: use it for a few inspected quality-loop pilots or a future
+suitable inference environment.
 
 ## Role contracts
 
 ### Builder
 
-**Input:** user request, constraints, prior feedback, and explicitly selected Code Book card
-IDs/revisions.
+**Inputs:** a project-authored train brief and bounded source-attributed Code Book context.
 
-**Output must include:**
-
-- answer/code and file/script placement;
-- explicit assumptions;
-- client/server authority map;
-- security notes for remotes, state, currency, inventory, combat, or purchases;
-- test plan and a structured summary for review; and
-- consulted Code Book card IDs/revisions with caveats preserved.
-
-The Builder must not claim an unrun Roblox test passed or present a Code Book excerpt as a
-substitute for current API verification.
+**Required JSON:** a self-contained `assistant_response`, explicit assumptions, security
+notes, a test plan, and the relevant Code Book card IDs. The Builder must use natural English,
+avoid invented APIs and fake execution claims, and keep pure-Luau tasks free of irrelevant
+Roblox networking.
 
 ### Reviewer
 
-**Input:** original request, Builder output, and cited Code Book card revisions.
+**Inputs:** the original train brief, candidate answer, deterministic static findings, and the
+same bounded Code Book context. Candidate text is quoted as untrusted data.
 
-**Review checks include:**
+**Required JSON:** a decision plus 1–5 scores for correctness, security, API validity,
+requirements, English, and code quality. Every issue is structured as:
 
-- each stated requirement and unresolved ambiguity;
-- Luau syntax/idiom plausibility and Roblox API names;
-- Script/LocalScript/ModuleScript placement;
-- untrusted RemoteEvent/RemoteFunction inputs;
-- server authority for economic, inventory, combat, access, and purchase decisions;
-- Instance/class/ancestry/distance/ownership validation where relevant;
-- event connection, lifetime, yielding, and performance risks; and
-- testability and failure paths.
+- `id` and category (`correctness`, `security`, `api`, `requirements`, `english`,
+  `code_quality`, `style`, `testability`, or `code_book`);
+- severity (`block`, `major`, `minor`, or `advisory`);
+- concrete message and observable evidence; and
+- required correction.
 
-**Output:** machine-readable findings with severity, observable evidence, recommendation,
-priority, Code Book citations/caveats, and a verdict. The Reviewer does not silently replace
-the solution; that responsibility remains visible in a Fixer revision.
+A Reviewer `accept` is mechanically downgraded to `revise` if it contains a block/major
+finding or any configured dimension is below its policy minimum. A static validation failure
+also prevents effective acceptance.
 
 ### Fixer
 
-**Input:** original request, Builder solution, Reviewer report, and cited Code Book context.
+**Inputs:** the original train brief, prior answer, all Reviewer findings, static findings, and
+Code Book context.
 
-**Output:** a revised self-contained solution, changes made, any remaining assumptions, and
-unresolved risks. The Fixer must address each concrete blocking finding or state why a
-requirement remains unresolved. It must not turn reviewer prose into an unsupported claim or
-silently discard an authority boundary.
+**Required JSON:** revised answer, changes made, remaining assumptions, unresolved risks, and
+the IDs of Reviewer findings addressed. A new candidate record is created with immutable
+parent/correction provenance; the old response is never overwritten.
 
-## First safe incremental implementation
+## Isolation and security invariants
 
-Only after a model has measurable evaluation results, implement a **single-turn prototype**
-that emits schema-validated JSON traces for these three roles and logs all inputs/outputs
-locally. Do not auto-execute Luau, publish models, mutate game files, or allow any role to
-see held-out evaluation rubrics, base answers, or score artifacts. Add multi-round feedback
-only after human inspection shows that traces, citations, correction provenance, and
-isolation gates are reliable.
+- Only a `train` source brief is accepted. The command performs a local wording-level
+  train-versus-evaluation collision check before the first role runs.
+- Evaluation prompts, rubrics, baseline outputs, scores, and expected answers are never
+  included in Builder, Reviewer, or Fixer prompts. The trace contains only collision IDs and
+  similarity numbers if it blocks a run.
+- Code Book context is source-attributed reference material, not authority to skip API
+  verification and not automatic SFT data.
+- Sensitive state remains server-owned. A LocalScript can call `RemoteEvent:FireServer`; a
+  RemoteEvent does not authenticate, validate, or authorize client-controlled input.
+- A reviewer error, parser error, rejection, static block, or exhausted repair budget stops
+  automatic progress. Nothing is silently accepted or promoted.
+
+## Deliberate non-features
+
+This loop does not execute Luau, edit Roblox places, use held-out tasks as feedback, run
+training, manufacture an adapter, claim benchmark improvement, or call `ollama run dukeotr`.
+Real LoRA/QLoRA work remains a future suitable CUDA/cloud-machine step after an actual,
+quality-gated dataset and baseline/evaluation evidence exist.

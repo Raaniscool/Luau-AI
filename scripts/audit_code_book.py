@@ -47,6 +47,72 @@ REQUIRED_DOMAINS: dict[str, tuple[str, ...]] = {
     "common mistakes": ("common_mistakes",),
 }
 
+# This deliberately names the minimum granular concepts requested for DukeOTR readiness.
+# A card can satisfy more than one row, but every row must be traceable to a source-checked
+# card domain.  It is a coverage floor, not a claim that one card makes the model competent.
+REQUIRED_CONCEPTS: dict[str, tuple[str, ...]] = {
+    "Luau values": ("values",),
+    "local scope": ("scope",),
+    "nil": ("nil",),
+    "operators": ("operators",),
+    "control flow": ("control_flow",),
+    "loops": ("loops",),
+    "functions": ("functions",),
+    "returns": ("returns",),
+    "tables": ("tables",),
+    "strings": ("strings",),
+    "math": ("math",),
+    "randomness": ("randomness",),
+    "type annotations": ("type_annotations",),
+    "typed tables": ("typed_tables",),
+    "unions": ("unions",),
+    "callbacks": ("callbacks",),
+    "errors": ("error_handling",),
+    "pcall": ("pcall",),
+    "assert": ("assert",),
+    "ModuleScripts": ("ModuleScripts",),
+    "require": ("require",),
+    "Instances": ("Instances",),
+    "services": ("services",),
+    "players": ("players",),
+    "characters": ("characters",),
+    "GUIs": ("GUIs",),
+    "events": ("events",),
+    "connections": ("connections",),
+    "closures": ("closures",),
+    "refactoring": ("refactoring",),
+    "RemoteEvents": ("RemoteEvents",),
+    "RemoteFunctions": ("RemoteFunctions",),
+    "client/server": ("client_server",),
+    "replication": ("replication",),
+    "server authority": ("server_authority",),
+    "security": ("security",),
+    "DataStores": ("DataStores",),
+    "raycasting": ("raycasting",),
+    "TweenService": ("TweenService",),
+    "RunService": ("RunService",),
+    "physics": ("physics",),
+    "performance": ("performance",),
+    "common API hallucinations": ("common_api_hallucinations",),
+}
+
+
+def coverage_matrix(cards: list[dict[str, Any]], required: dict[str, tuple[str, ...]]) -> tuple[dict[str, list[str]], dict[str, tuple[str, ...]]]:
+    """Return explicit card evidence and rows that have no tagged source-checked coverage."""
+    eligible = [card for card in cards if card.get("status") in {"source_checked", "human_verified"}]
+    matrix: dict[str, list[str]] = {}
+    missing: dict[str, tuple[str, ...]] = {}
+    for label, alternatives in required.items():
+        matching_ids = sorted(
+            str(card.get("id"))
+            for card in eligible
+            if any(value in set(str(item) for item in card.get("domains", [])) for value in alternatives)
+        )
+        matrix[label] = matching_ids
+        if not matching_ids:
+            missing[label] = alternatives
+    return matrix, missing
+
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description="Audit Code Book provenance, schema, and coverage")
@@ -76,10 +142,12 @@ def run(arguments: argparse.Namespace) -> int:
         ids.add(card_id)
         for finding in validate_card(card, allowed_source_host_suffixes=suffixes):
             findings.append({"card_id": card_id, **finding})
-    domain_set = set().union(*(set(str(item) for item in card.get("domains", [])) for card in cards))
-    missing_domains = {
-        label: alternatives for label, alternatives in REQUIRED_DOMAINS.items() if not any(value in domain_set for value in alternatives)
-    }
+    domain_coverage, missing_domains = coverage_matrix(cards, REQUIRED_DOMAINS)
+    concept_coverage, missing_concepts = coverage_matrix(cards, REQUIRED_CONCEPTS)
+    minimum_card_count = config.get("minimum_source_checked_cards", 1)
+    if not isinstance(minimum_card_count, int) or minimum_card_count < 1:
+        raise ValueError("Code Book minimum_source_checked_cards must be an integer >= 1")
+    source_checked_count = sum(card.get("status") in {"source_checked", "human_verified"} for card in cards)
     cards_without_patterns = [card["id"] for card in cards if not card.get("patterns")]
     errors = [finding for finding in findings if finding["severity"] == "error"]
     warnings = [finding for finding in findings if finding["severity"] != "error"]
@@ -90,18 +158,27 @@ def run(arguments: argparse.Namespace) -> int:
         "cards": str(cards_path),
         **catalog_summary(cards),
         "duplicate_ids": sorted(set(duplicate_ids)),
+        "minimum_source_checked_cards": minimum_card_count,
+        "source_checked_card_count": source_checked_count,
+        "source_checked_card_count_status": "pass" if source_checked_count >= minimum_card_count else "fail",
+        "domain_coverage": domain_coverage,
         "missing_required_domains": missing_domains,
+        "granular_concept_coverage": concept_coverage,
+        "missing_required_concepts": missing_concepts,
         "cards_without_explicit_pattern": cards_without_patterns,
         "errors": errors,
         "warnings": warnings,
-        "status": "pass" if not (errors or duplicate_ids or missing_domains or cards_without_patterns) else "fail",
+        "status": "pass"
+        if not (errors or duplicate_ids or missing_domains or missing_concepts or cards_without_patterns or source_checked_count < minimum_card_count)
+        else "fail",
         "policy_note": "source_checked cards are source-attributed reference material, not human-verified facts or automatic training data.",
     }
     write_json_atomic(arguments.output, report)
     print(
         f"Code Book audit: {report['status']} — {report['card_count']} cards, "
-        f"{len(errors)} errors, {len(warnings)} warnings, {len(missing_domains)} missing domains. "
-        f"Report: {arguments.output}"
+        f"{source_checked_count}/{minimum_card_count} source-checked floor, {len(errors)} errors, "
+        f"{len(warnings)} warnings, {len(missing_domains)} missing broad domains, "
+        f"{len(missing_concepts)} missing granular concepts. Report: {arguments.output}"
     )
     if arguments.strict and report["status"] != "pass":
         return 2

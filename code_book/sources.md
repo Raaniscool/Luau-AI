@@ -5,7 +5,7 @@
 Use official sources first:
 
 - Roblox Creator Hub documentation and engine API reference: `https://create.roblox.com/docs/`
-- Official Luau documentation surfaced through the Roblox Creator Hub.
+- Official Luau documentation at `https://luau.org/`.
 
 Starter sources used by the proof of concept:
 
@@ -21,6 +21,15 @@ Starter sources used by the proof of concept:
 - [Roblox events and connections](https://create.roblox.com/docs/scripting/events)
 - [Implement player data and purchasing systems](https://create.roblox.com/docs/scripting/data/player-data-purchasing)
 - [Developer products](https://create.roblox.com/docs/production/monetization/developer-products)
+- [Players and characters](https://create.roblox.com/docs/players)
+- [Client-server runtime](https://create.roblox.com/docs/projects/client-server)
+- [Data model and runtime containers](https://create.roblox.com/docs/projects/data-model)
+- [Services](https://create.roblox.com/docs/scripting/services)
+- [Text and image buttons](https://create.roblox.com/docs/ui/buttons)
+- [UserInputService API reference](https://create.roblox.com/docs/reference/engine/classes/UserInputService)
+- [Raycasting](https://create.roblox.com/docs/workspace/raycasting)
+- [Collision filtering](https://create.roblox.com/docs/workspace/collisions)
+- [Luau unions and intersections](https://luau.org/types/unions-and-intersections/)
 
 ## Evidence rules
 

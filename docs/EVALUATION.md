@@ -57,6 +57,26 @@ The baseline runner cannot prove a user-created tag was unmodified. Use the down
 It is a tracked, project-authored benchmark. Its prompts/rubrics are intentionally never
 loaded by `generate_examples.py` or `train_qlora.py`.
 
+## Expansion stewardship
+
+The current 24 tasks are a foundation, not the requested mature suite. The permanently
+held-out `evaluation_data/coverage_plan.json` tracks the authoring path toward **100–300**
+carefully authored tests across Luau fundamentals, Roblox APIs/lifecycle, client-server
+security, persistence/economy, systems/architecture, and debugging/performance. It deliberately
+contains no future prompt wording, rubrics, expected answers, model outputs, or score reports.
+
+```powershell
+# Validates the current held-out suite and reports coverage without claiming maturity.
+python .\scripts\audit_evaluation_suite.py --strict
+
+# Future release gate only: intentionally fails while fewer than 100 tasks or coverage floors exist.
+python .\scripts\audit_evaluation_suite.py --require-mature-target
+```
+
+Each future task must be independently authored and rubric-driven, then remain in
+`evaluation_data/` only. Do not convert the coverage plan, prompts, rubrics, baseline outputs,
+or audit reports into generation context or training data.
+
 ## Score a run
 
 ```powershell

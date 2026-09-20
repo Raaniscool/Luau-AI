@@ -23,18 +23,25 @@ VALID_DIFFICULTIES = {"beginner", "intermediate", "advanced"}
 # instruction coverage.
 VALID_TASK_TYPES = {
     "architecture_design",
+    "api_misuse_diagnosis",
     "api_usage",
+    "bad_answer_critique",
     "bug_fix",
     "code_explanation",
     "code_generation",
     "code_review",
+    "completion",
+    "diagnosis_correction",
+    "insecurity_analysis",
     "natural_language_to_luau",
     "optimization",
     "output_prediction",
     "question_answer",
     "refactoring",
     "requirements_implementation",
+    "runtime_reasoning",
     "security_review",
+    "subtle_bug_analysis",
     "tradeoff_analysis",
 }
 VALID_REVIEW_DECISIONS = {"accept", "revise", "reject"}

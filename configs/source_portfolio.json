@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "project_name": "DukeOTR",
+  "source_catalogs": [
+    "raw_data/dukeotr_phase1_luau_seed_tasks.jsonl",
+    "raw_data/roblox_luau_seed_tasks.jsonl"
+  ],
+  "evaluation_file": "evaluation_data/roblox_luau_eval.jsonl",
+  "minimum_project_authored_briefs": 120,
+  "maximum_single_task_type_share": 0.45,
+  "cross_split_prompt_threshold": 0.93,
+  "required_task_forms": {
+    "implementation": ["code_generation", "requirements_implementation", "natural_language_to_luau", "completion"],
+    "explanation": ["question_answer", "code_explanation"],
+    "output_prediction": ["output_prediction"],
+    "diagnosis_correction": ["bug_fix", "diagnosis_correction"],
+    "bad_answer_critique": ["bad_answer_critique"],
+    "review": ["code_review"],
+    "security_review": ["security_review", "insecurity_analysis"],
+    "refactor": ["refactoring"],
+    "optimization": ["optimization"],
+    "api_identification_or_misuse": ["api_usage", "api_misuse_diagnosis"],
+    "architecture": ["architecture_design"],
+    "requirements": ["requirements_implementation"],
+    "comparison_tradeoff": ["tradeoff_analysis"],
+    "completion": ["completion"],
+    "subtle_bug_analysis": ["subtle_bug_analysis"],
+    "runtime_reasoning": ["runtime_reasoning"],
+    "insecurity_analysis": ["insecurity_analysis"]
+  },
+  "notes": [
+    "This audit measures project-authored source-brief variety only; it does not claim a generated candidate corpus or training-ready dataset exists.",
+    "Held-out evaluation material is compared only locally for wording-level collision detection and is never passed to generation roles.",
+    "The floor is intentionally modest. Raise it only with documented quality and diversity review, not bulk paraphrasing."
+  ]
+}

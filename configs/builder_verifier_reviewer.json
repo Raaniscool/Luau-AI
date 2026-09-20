@@ -1,19 +1,63 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "1.0",
   "project_name": "DukeOTR",
-  "status": "future_interface_only_not_an_orchestrator",
+  "status": "implemented_trace_orchestrator_no_auto_promotion",
   "roles": {
     "builder": {
-      "input": ["user_request", "constraints", "prior_feedback", "code_book_context"],
-      "output": ["solution", "file_layout", "assumptions", "security_notes", "test_plan", "code_book_card_revisions"]
+      "input": ["user_request", "constraints", "prior_feedback", "source_attributed_code_book_context"],
+      "output": ["assistant_response", "assumptions", "security_notes", "test_plan", "code_book_card_ids"]
     },
     "reviewer": {
-      "input": ["user_request", "builder_solution", "code_book_context"],
-      "output": ["requirement_results", "api_findings", "security_findings", "test_findings", "code_book_findings", "prioritized_feedback", "verdict"]
+      "input": ["user_request", "builder_solution", "static_findings", "source_attributed_code_book_context"],
+      "output": ["dimension_scores", "structured_findings", "api_claims_to_verify", "summary", "decision"]
     },
     "fixer": {
-      "input": ["user_request", "builder_solution", "reviewer_report", "code_book_context"],
-      "output": ["revised_solution", "changes_made", "remaining_assumptions", "unresolved_risks"]
+      "input": ["user_request", "builder_solution", "reviewer_report", "static_findings", "source_attributed_code_book_context"],
+      "output": ["revised_solution", "changes_made", "remaining_assumptions", "unresolved_risks", "addressed_finding_ids"]
+    }
+  },
+  "orchestrator": {
+    "entrypoint": "python -m scripts.run_builder_reviewer_fixer",
+    "default_max_rounds": 2,
+    "maximum_max_rounds": 4,
+    "code_book_context_limit": 4,
+    "review_static_failures": true,
+    "repair_rejections": false,
+    "no_auto_promotion": true,
+    "permitted_source_split": "train",
+    "role_models": {
+      "default": "qwen3:4b"
+    },
+    "role_options": {
+      "builder": {
+        "temperature": 0.25,
+        "top_p": 0.9,
+        "seed": 3407,
+        "num_predict": 2200,
+        "num_ctx": 8192
+      },
+      "reviewer": {
+        "temperature": 0.0,
+        "top_p": 0.9,
+        "seed": 3407,
+        "num_predict": 1800,
+        "num_ctx": 8192
+      },
+      "fixer": {
+        "temperature": 0.1,
+        "top_p": 0.9,
+        "seed": 3407,
+        "num_predict": 2200,
+        "num_ctx": 8192
+      }
+    },
+    "minimum_dimension_scores": {
+      "correctness": 4,
+      "security": 4,
+      "api_validity": 4,
+      "requirements": 4,
+      "english": 3,
+      "code_quality": 3
     }
   },
   "invariants": [
@@ -21,6 +65,8 @@
     "A LocalScript can call RemoteEvent:FireServer; remotes do not automatically validate or authorize client input.",
     "Untrusted client input is validated, rate-limited where relevant, and never treated as proof of ownership.",
     "Each role emits machine-readable JSON alongside human-readable rationale.",
+    "The trace stores concrete correctness, security, API, requirement, English, and code-quality findings rather than a bare pass/fail label.",
+    "An accepted trace is not automatically promoted to candidate, final training, adapter, or model artifacts.",
     "Evaluation tasks, rubrics, base answers, and score artifacts remain unavailable to all data-generation roles."
   ]
 }
