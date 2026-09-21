@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from scripts.lib.io_utils import read_json, read_jsonl, write_json_atomic
+from scripts.lib.io_utils import read_json, read_jsonl, sha256_file, write_json_atomic, write_jsonl_atomic
 from scripts.lib.ollama import OllamaUnavailableError
 from scripts.lib.real_model_pilot import load_pilot_tasks, validate_pilot_tasks
 from scripts.lib.schema import STATIC_CHECKER_VERSION
@@ -232,6 +232,16 @@ def corrected_failure_trace(arguments) -> int:
         ],
         "final_candidate": {"messages": [{"role": "assistant", "content": FIXED_ANSWER}]},
     }
+    write_json_atomic(arguments.output, trace)
+    return 0
+
+
+def empty_correction_explanation_trace(arguments) -> int:
+    """Legacy-shaped trace: a real Fixer answer with no actual change explanation."""
+
+    corrected_failure_trace(arguments)
+    trace = read_json(arguments.output)
+    trace["rounds"][0]["fixer"]["changes_made"] = []
     write_json_atomic(arguments.output, trace)
     return 0
 
@@ -550,6 +560,7 @@ class RealModelPilotOfflineTests(unittest.TestCase):
         corrected = list(read_jsonl(root / "corrected_candidates.jsonl"))
         final = list(read_jsonl(root / "final_candidates.jsonl"))
         eligible = list(read_jsonl(root / "training_eligible_candidates.jsonl"))
+        linkable = list(read_jsonl(root / "linkable_corrections.jsonl"))
         failures = list(read_jsonl(root / "observed_failures.jsonl"))
         ledger = list(read_jsonl(root / "training_factory_ledger.jsonl"))
         report = read_json(root / "pilot_report.json")
@@ -564,13 +575,128 @@ class RealModelPilotOfflineTests(unittest.TestCase):
         self.assertEqual(final[0]["messages"][2]["content"], FIXED_ANSWER)
         self.assertEqual(len(eligible), 1)
         self.assertEqual(eligible[0]["metadata"]["pilot"]["model_provenance"]["model_tag"], "qwen3:4b")
+        self.assertEqual(linkable[0]["record_id"], corrected[0]["record_id"])
         self.assertEqual(len(failures), 1)
         self.assertEqual(failures[0]["correction"]["corrected_record_id"], corrected[0]["record_id"])
         self.assertEqual(failures[0]["verification"]["status"], "corrected_and_revalidated")
-        self.assertTrue(any(row["record_id"] == raw[0]["record_id"] for row in ledger))
+        self.assertEqual(len(ledger), 2)
+        raw_ledger = next(row for row in ledger if row["record_id"] == raw[0]["record_id"])
+        self.assertEqual(raw_ledger["correction"]["corrected_record_id"], corrected[0]["record_id"])
         self.assertEqual(report["promotion"]["status"], "prohibited")
         self.assertIn("never automatic dataset promotion", report["artifact_states"]["training_eligible_output"]["meaning"])
         self.assertFalse((self.root / "training_data").exists())
+
+    def test_empty_fixer_explanation_is_preserved_unlinked_and_never_crashes_sidecars(self) -> None:
+        self.write_tasks([pilot_task(1)])
+        with patch("scripts.run_real_model_pilot.OllamaClient.assert_model_present"), patch(
+            "scripts.run_real_model_pilot.run_builder_reviewer_fixer.run", side_effect=empty_correction_explanation_trace
+        ):
+            code = main(self.command("empty-correction"))
+        root = self.paths("empty-correction")
+        corrected = list(read_jsonl(root / "corrected_candidates.jsonl"))
+        final = list(read_jsonl(root / "final_candidates.jsonl"))
+        linkable = list(read_jsonl(root / "linkable_corrections.jsonl"))
+        deduplicated = list(read_jsonl(root / "deduplicated_candidates.jsonl"))
+        eligible = list(read_jsonl(root / "training_eligible_candidates.jsonl"))
+        ledger = list(read_jsonl(root / "training_factory_ledger.jsonl"))
+        linkage = read_json(root / "correction_linkage_report.json")
+        report = read_json(root / "pilot_report.json")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(corrected), 1)
+        self.assertEqual(corrected[0]["metadata"]["correction"]["changes_made"], [])
+        self.assertEqual(corrected[0]["metadata"]["pilot"]["correction_evidence"]["status"], "ineligible_missing_actual_explanation")
+        self.assertEqual(corrected[0]["quality"]["correction_evidence"]["status"], "missing_actual_explanation")
+        self.assertEqual(len(final), 1)
+        self.assertEqual(linkable, [])
+        self.assertEqual(deduplicated, [])
+        self.assertEqual(eligible, [])
+        self.assertEqual(len(ledger), 2)
+        self.assertTrue(all(row["correction"]["corrected_record_id"] is None for row in ledger))
+        self.assertEqual(linkage["unlinked_record_count"], 1)
+        self.assertEqual(linkage["terminal_records_excluded_from_deduplication"][0]["record_id"], final[0]["record_id"])
+        self.assertEqual(
+            report["artifact_states"]["training_eligible_output"]["ineligible_reasons_by_record"][final[0]["record_id"]],
+            ["correction_explanation_missing_actual_evidence"],
+        )
+        self.assertEqual(report["sidecars"]["failure_analysis"]["status"], "complete")
+
+    def test_sidecar_repair_refuses_a_changed_held_out_evaluation_fingerprint(self) -> None:
+        self.write_tasks([pilot_task(1)])
+        with patch("scripts.run_real_model_pilot.OllamaClient.assert_model_present"), patch(
+            "scripts.run_real_model_pilot.run_builder_reviewer_fixer.run", side_effect=accept_trace
+        ):
+            self.assertEqual(main(self.command("repair-eval-fingerprint")), 0)
+        root = self.paths("repair-eval-fingerprint")
+        raw_path = root / "raw_builder_candidates.jsonl"
+        raw_hash = sha256_file(raw_path)
+        self.evaluation_path.write_text(
+            json.dumps({"id": "eval-new", "prompt": "A held-out cardinal-direction puzzle with unrelated wording."}) + "\n",
+            encoding="utf-8",
+        )
+        with patch("scripts.run_real_model_pilot.OllamaClient") as client, patch(
+            "scripts.run_real_model_pilot.run_builder_reviewer_fixer.run"
+        ) as brf:
+            code = main(self.command("repair-eval-fingerprint", "--repair-sidecars"))
+        self.assertEqual(code, 2)
+        client.assert_not_called()
+        brf.assert_not_called()
+        self.assertEqual(sha256_file(raw_path), raw_hash)
+        self.assertFalse((root / "repair_snapshots").exists())
+
+    def test_sidecar_repair_is_no_model_audited_and_preserves_legacy_source_artifacts(self) -> None:
+        self.write_tasks([pilot_task(1)])
+        with patch("scripts.run_real_model_pilot.OllamaClient.assert_model_present"), patch(
+            "scripts.run_real_model_pilot.run_builder_reviewer_fixer.run", side_effect=empty_correction_explanation_trace
+        ):
+            initial = main(self.command("repair-legacy"))
+        self.assertEqual(initial, 0)
+        root = self.paths("repair-legacy")
+
+        # Simulate the pre-fix persisted artifact shape from the Windows run: it contains an
+        # actual empty Fixer explanation but no newer quality-hold metadata. Do not alter trace.
+        final_path = root / "final_candidates.jsonl"
+        final = list(read_jsonl(final_path))
+        final[0]["quality"].pop("correction_evidence", None)
+        write_jsonl_atomic(final_path, final)
+        state_path = root / "pilot_state.json"
+        state = read_json(state_path)
+        state["status"] = "sidecar_error"
+        state["pipeline_version"]["pilot_runner"]["sha256"] = "legacy-pilot-runner-hash"
+        write_json_atomic(state_path, state)
+        write_json_atomic(root / "pilot_manifest.json", {**state, "kind": "dukeotr_real_model_pilot_manifest"})
+        old_report = read_json(root / "pilot_report.json")
+        old_report["materialization_errors"] = ["Training Factory sidecar error: legacy empty correction evidence"]
+        write_json_atomic(root / "pilot_report.json", old_report)
+        source_paths = (root / "raw_builder_candidates.jsonl", root / "corrected_candidates.jsonl", final_path)
+        source_hashes = {str(path): sha256_file(path) for path in source_paths}
+
+        # The normal generation resume still refuses a changed pipeline fingerprint. The repair
+        # path is the only deliberate exception and it runs no model-facing code.
+        with patch("scripts.run_real_model_pilot.OllamaClient") as client, patch(
+            "scripts.run_real_model_pilot.run_builder_reviewer_fixer.run"
+        ) as brf:
+            blocked = main(self.command("repair-legacy"))
+            repaired = main(self.command("repair-legacy", "--repair-sidecars"))
+        self.assertEqual(blocked, 2)
+        self.assertEqual(repaired, 0)
+        client.assert_not_called()
+        brf.assert_not_called()
+        self.assertEqual({str(path): sha256_file(path) for path in source_paths}, source_hashes)
+
+        repaired_state = read_json(state_path)
+        repaired_report = read_json(root / "pilot_report.json")
+        self.assertEqual(repaired_state["status"], "completed")
+        self.assertEqual(len(repaired_state["sidecar_repair_history"]), 1)
+        repair_event = repaired_state["sidecar_repair_history"][0]
+        self.assertEqual(repair_event["status"], "complete")
+        self.assertTrue(repair_event["pipeline_fingerprint_mismatch_allowed_only_for_no_model_repair"])
+        self.assertEqual(repair_event["immutable_trace_hashes_after"], repair_event["immutable_trace_hashes"])
+        snapshot = Path(repair_event["snapshot_directory"])
+        self.assertTrue((snapshot / "snapshot_manifest.json").exists())
+        self.assertEqual(read_json(snapshot / "pilot_state.json")["status"], "sidecar_error")
+        self.assertEqual(repaired_report["sidecars"]["correction_linkage"]["unlinked_record_count"], 1)
+        self.assertEqual(repaired_report["artifact_states"]["verified_output"]["count"], 0)
+        self.assertEqual(repaired_report["sidecar_repair_history"][0]["prior_state"], "sidecar_error")
 
 
 if __name__ == "__main__":

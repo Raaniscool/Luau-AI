@@ -293,6 +293,26 @@ def reviewer_approved(record: dict[str, Any]) -> bool:
     )
 
 
+def correction_evidence_hold_reasons(record: dict[str, Any]) -> list[str]:
+    """Return explicit correction-evidence holds without inferring missing model evidence.
+
+    The real-model pilot uses this narrow marker when a Fixer emitted a candidate but supplied
+    no usable ``changes_made``/``reason`` evidence. It is intentionally a conservative hold:
+    it does not alter the captured answer or reviewer result, but no downstream quality stage
+    may promote that unsupported correction.
+    """
+
+    quality = record.get("quality", {})
+    evidence = quality.get("correction_evidence") if isinstance(quality, dict) else None
+    if evidence is None:
+        return []
+    if not isinstance(evidence, dict):
+        return ["correction_evidence_invalid"]
+    if evidence.get("status") == "missing_actual_explanation":
+        return ["correction_explanation_missing_actual_evidence"]
+    return []
+
+
 def quality_gate_status(record: dict[str, Any]) -> tuple[bool, list[str]]:
     """Return final eligibility and all reasons it cannot enter final training data."""
     reasons: list[str] = []
@@ -316,4 +336,5 @@ def quality_gate_status(record: dict[str, Any]) -> tuple[bool, list[str]]:
     failure_analysis = quality.get("failure_analysis")
     if isinstance(failure_analysis, dict) and failure_analysis.get("unresolved_critical") is True:
         reasons.append("unresolved_critical_failure")
+    reasons.extend(correction_evidence_hold_reasons(record))
     return not reasons, reasons

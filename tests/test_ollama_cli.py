@@ -71,6 +71,32 @@ class OllamaCliTests(unittest.TestCase):
         self.assertFalse(payload["think"])
         self.assertEqual(payload["format"], "json")
 
+    @patch("scripts.lib.ollama.urlopen")
+    def test_generate_excludes_separate_ollama_thinking_chunks_from_final_content(self, urlopen_mock) -> None:
+        class FakeStream:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def __iter__(self):
+                return iter(
+                    [
+                        b'{"model":"qwen3:4b","thinking":"private planning ","response":"final ","done":false}\n',
+                        b'{"model":"qwen3:4b","thinking":"only","response":"answer","done":false}\n',
+                        b'{"model":"qwen3:4b","response":"","done":true}\n',
+                    ]
+                )
+
+        urlopen_mock.return_value = FakeStream()
+        response = OllamaClient().generate(model="qwen3:4b", prompt="test", think=False)
+        self.assertEqual(response.content, "final answer")
+        self.assertEqual(response.thinking, "private planning only")
+        self.assertNotIn("private planning", response.content)
+        self.assertFalse(response.think_requested)
+        self.assertEqual(response.raw["thinking"], "private planning only")
+
     @patch("scripts.lib.ollama_cli.subprocess.run")
     def test_missing_tag_fails_without_suggesting_automatic_download(self, run_mock) -> None:
         run_mock.return_value = subprocess.CompletedProcess(

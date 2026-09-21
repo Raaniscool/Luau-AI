@@ -17,7 +17,7 @@ from typing import Any
 
 from scripts.lib.dedupe import cross_split_prompt_collisions, mark_deduplicated
 from scripts.lib.io_utils import read_json, read_jsonl, utc_now, write_json_atomic, write_jsonl_atomic
-from scripts.lib.schema import STATIC_CHECKER_VERSION, reviewer_approved, validate_example_structure
+from scripts.lib.schema import STATIC_CHECKER_VERSION, correction_evidence_hold_reasons, reviewer_approved, validate_example_structure
 
 
 def parser() -> argparse.ArgumentParser:
@@ -45,6 +45,7 @@ def pre_dedupe_eligibility(record: dict[str, Any]) -> tuple[bool, list[str]]:
         reasons.append("static_checker_version_not_current")
     if not reviewer_approved(record):
         reasons.append("no_accepting_reviewer")
+    reasons.extend(correction_evidence_hold_reasons(record))
     return not reasons, reasons
 
 

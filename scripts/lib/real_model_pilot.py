@@ -40,6 +40,9 @@ class PilotPaths:
     report: Path
     raw_candidates: Path
     corrected_candidates: Path
+    linkable_corrections: Path
+    correction_linkage_report: Path
+    deduplication_input_candidates: Path
     final_candidates: Path
     deduplicated_candidates: Path
     training_eligible_candidates: Path
@@ -58,6 +61,9 @@ class PilotPaths:
             report=root / "pilot_report.json",
             raw_candidates=root / "raw_builder_candidates.jsonl",
             corrected_candidates=root / "corrected_candidates.jsonl",
+            linkable_corrections=root / "linkable_corrections.jsonl",
+            correction_linkage_report=root / "correction_linkage_report.json",
+            deduplication_input_candidates=root / "deduplication_input_candidates.jsonl",
             final_candidates=root / "final_candidates.jsonl",
             deduplicated_candidates=root / "deduplicated_candidates.jsonl",
             training_eligible_candidates=root / "training_eligible_candidates.jsonl",
@@ -79,6 +85,38 @@ class PilotMaterialization:
     final_records: tuple[dict[str, Any], ...]
     reviewer_finding_count: int
     fixer_count: int
+
+
+def correction_explanation_evidence(record: dict[str, Any]) -> dict[str, str]:
+    """Classify whether a persisted correction can be linked by Factory sidecars.
+
+    A Fixer response itself remains actual pilot evidence even when it failed to provide the
+    explanation required by the Training Factory lineage contract. This helper deliberately
+    mirrors that contract's ``changes_made``/``reason`` fallback rather than inventing a
+    description from the changed answer, reviewer findings, or a diff.
+    """
+
+    metadata = record.get("metadata")
+    correction = metadata.get("correction") if isinstance(metadata, dict) else None
+    if not isinstance(correction, dict):
+        return {
+            "status": "ineligible_missing_actual_explanation",
+            "reason": "Corrected candidate has no correction metadata object.",
+        }
+    source_field = "changes_made" if "changes_made" in correction else "reason"
+    explanation = correction.get(source_field, [])
+    if isinstance(explanation, str) and explanation.strip():
+        return {"status": "linkable", "source_field": source_field}
+    if isinstance(explanation, list) and explanation and all(isinstance(item, str) and item.strip() for item in explanation):
+        return {"status": "linkable", "source_field": source_field}
+    return {
+        "status": "ineligible_missing_actual_explanation",
+        "source_field": source_field,
+        "reason": (
+            "Fixer correction evidence has no non-empty actual changes_made/reason value; "
+            "the coordinator did not infer one from the answer or review."
+        ),
+    }
 
 
 def validate_run_id(run_id: str) -> str:
@@ -564,6 +602,18 @@ def materialize_trace_candidates(
             attempt=attempt,
         )
         current["metadata"]["pilot"]["fixer_response_evidence"] = _response_evidence(fixer)
+        correction_evidence = correction_explanation_evidence(current)
+        current["metadata"]["pilot"]["correction_evidence"] = correction_evidence
+        if correction_evidence["status"] != "linkable":
+            # Keep the model's actual correction untouched, but make the absence of a real
+            # Fixer explanation a visible quality hold. This prevents an otherwise accepting
+            # later reviewer from turning unsupported correction text into training-eligible
+            # evidence through a sidecar shortcut.
+            current.setdefault("quality", {})["correction_evidence"] = {
+                "status": "missing_actual_explanation",
+                "reason": correction_evidence["reason"],
+                "checked_at": str(trace.get("completed_at") or trace.get("created_at") or utc_now()),
+            }
         corrected_records.append(current)
         fixer_count += 1
 

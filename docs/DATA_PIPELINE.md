@@ -61,6 +61,9 @@ Every candidate uses JSONL with this essential structure:
 
 Correction creates a **new** record with `parent_record_id`, correction round, and a
 snapshot of the findings that led to the repair. It never overwrites the original candidate.
+A lineage/failure link additionally requires the correction's own non-empty actual explanation
+(such as `changes_made`); an empty or malformed explanation is preserved as evidence but must
+remain unlinked and ineligible rather than being inferred from a diff or reviewer text.
 
 Factory-created source briefs may additionally carry explicit `category`, `task_depth`
 (`short`, `normal`, or `deep`), difficulty/depth rationale, targeting provenance, and eventual

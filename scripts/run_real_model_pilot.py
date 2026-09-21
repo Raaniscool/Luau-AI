@@ -18,6 +18,7 @@ import argparse
 from collections import Counter
 from copy import deepcopy
 from pathlib import Path
+import shutil
 import sys
 from typing import Any
 
@@ -29,6 +30,7 @@ from scripts.lib.real_model_pilot import (
     PilotMaterialization,
     PilotPaths,
     RealModelPilotError,
+    correction_explanation_evidence,
     initial_pilot_state,
     load_pilot_state,
     load_pilot_tasks,
@@ -87,6 +89,15 @@ def parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Validate task/isolation/run layout and write a no-model plan; does not call Ollama or B/R/F.",
+    )
+    value.add_argument(
+        "--repair-sidecars",
+        action="store_true",
+        help=(
+            "Explicitly rebuild only derived Training Factory sidecars from an existing pilot's "
+            "persisted candidate artifacts. It never calls Ollama/B/R/F, snapshots existing "
+            "derived artifacts first, and may process an older pipeline fingerprint."
+        ),
     )
     return value
 
@@ -154,6 +165,9 @@ def _assert_safe_paths(paths: PilotPaths) -> None:
         paths.report,
         paths.raw_candidates,
         paths.corrected_candidates,
+        paths.linkable_corrections,
+        paths.correction_linkage_report,
+        paths.deduplication_input_candidates,
         paths.final_candidates,
         paths.deduplicated_candidates,
         paths.training_eligible_candidates,
@@ -199,7 +213,9 @@ def _state_matches(
     task_path: str,
     tasks: list[dict[str, Any]],
     model: str,
+    evaluation_isolation: dict[str, Any],
     pipeline_version: dict[str, Any],
+    allow_pipeline_mismatch_for_sidecar_repair: bool = False,
 ) -> None:
     if state.get("run_id") != run_id:
         raise RealModelPilotError("Existing pilot state run_id does not match --run-id")
@@ -211,7 +227,16 @@ def _state_matches(
     state_model = state.get("model")
     if not isinstance(state_model, dict) or state_model.get("requested_tag") != model:
         raise RealModelPilotError("Existing pilot state used a different model tag; use a new --run-id")
-    if state.get("pipeline_version") != pipeline_version:
+    stored_isolation = state.get("evaluation_isolation")
+    if (
+        not isinstance(stored_isolation, dict)
+        or stored_isolation.get("evaluation_sha256") != evaluation_isolation.get("evaluation_sha256")
+        or stored_isolation.get("threshold") != evaluation_isolation.get("threshold")
+    ):
+        raise RealModelPilotError(
+            "Held-out evaluation fingerprint/isolation threshold changed since this run started; use a new --run-id rather than reprocess against different held-out material"
+        )
+    if state.get("pipeline_version") != pipeline_version and not allow_pipeline_mismatch_for_sidecar_repair:
         raise RealModelPilotError("Pilot pipeline/config fingerprints changed since this run started; use a new --run-id")
     identifiers = [item.get("task_id") for item in state.get("tasks", []) if isinstance(item, dict)]
     expected_ids = [task["id"] for task in tasks]
@@ -399,6 +424,79 @@ def _write_materialized_artifacts(
     return raw, corrected, finals, errors
 
 
+def _write_correction_linkage_artifacts(paths: PilotPaths, final_records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Persist an explicit, non-invented subset usable by Factory correction linking.
+
+    The full ``corrected_candidates.jsonl`` remains the canonical capture of every Fixer answer.
+    This derived subset contains only corrections whose own persisted metadata satisfies the
+    Factory explanation rule. Unsupported corrections stay visible in the source artifact and
+    linkage report but cannot make a ledger/failure row claim an explanation that was never
+    supplied.
+    """
+
+    corrected = list(read_jsonl(paths.corrected_candidates))
+    linkable: list[dict[str, Any]] = []
+    unlinked: list[dict[str, Any]] = []
+    for record in corrected:
+        evidence = correction_explanation_evidence(record)
+        if evidence.get("status") == "linkable":
+            linkable.append(record)
+            continue
+        metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+        unlinked.append(
+            {
+                "record_id": record.get("record_id"),
+                "parent_record_id": metadata.get("parent_record_id"),
+                "correction_round": metadata.get("correction_round"),
+                "status": evidence.get("status"),
+                "source_field": evidence.get("source_field"),
+                "reason": evidence.get("reason"),
+            }
+        )
+
+    # Existing pre-fix runs have immutable final artifacts without the newer explicit quality
+    # hold. Filter only the derived deduplication input so those old records cannot become
+    # eligible during repair; the full final JSONL remains untouched and inspectable.
+    deduplication_input: list[dict[str, Any]] = []
+    terminal_excluded: list[dict[str, Any]] = []
+    for record in final_records:
+        metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+        is_correction = metadata.get("stage") == "corrected" or isinstance(metadata.get("parent_record_id"), str)
+        evidence = correction_explanation_evidence(record) if is_correction else {"status": "linkable"}
+        if evidence.get("status") == "linkable":
+            deduplication_input.append(record)
+            continue
+        terminal_excluded.append(
+            {
+                "record_id": record.get("record_id"),
+                "parent_record_id": metadata.get("parent_record_id"),
+                "status": evidence.get("status"),
+                "source_field": evidence.get("source_field"),
+                "reason": evidence.get("reason"),
+            }
+        )
+    write_jsonl_atomic(paths.linkable_corrections, linkable)
+    write_jsonl_atomic(paths.deduplication_input_candidates, deduplication_input)
+    report = {
+        "stage": "pilot_correction_linkage",
+        "corrected_candidates": str(paths.corrected_candidates),
+        "linkable_corrections": str(paths.linkable_corrections),
+        "deduplication_input_candidates": str(paths.deduplication_input_candidates),
+        "corrected_record_count": len(corrected),
+        "linkable_record_count": len(linkable),
+        "unlinked_record_count": len(unlinked),
+        "unlinked_corrections": unlinked,
+        "deduplication_input_record_count": len(deduplication_input),
+        "terminal_records_excluded_from_deduplication": terminal_excluded,
+        "non_claim": (
+            "An unlinked correction is preserved actual Fixer output, not a verified correction. "
+            "No change explanation was inferred from answer text, reviewer findings, or a diff."
+        ),
+    }
+    write_json_atomic(paths.correction_linkage_report, report)
+    return report
+
+
 def _run_sidecars(
     *,
     arguments: argparse.Namespace,
@@ -408,14 +506,25 @@ def _run_sidecars(
     """Use existing Factory CLIs programmatically; never call dataset construction."""
 
     sidecar: dict[str, Any] = {
+        "correction_linkage": {"status": "not_run"},
         "deduplication": {"status": "not_run"},
         "ledger": {"status": "not_run"},
         "failure_recording": {"status": "not_run"},
         "failure_analysis": {"status": "not_run"},
     }
-    if final_records:
+    correction_linkage = _write_correction_linkage_artifacts(paths, final_records)
+    sidecar["correction_linkage"] = {
+        "status": "complete",
+        "report": str(paths.correction_linkage_report),
+        "linkable_record_count": correction_linkage["linkable_record_count"],
+        "unlinked_record_count": correction_linkage["unlinked_record_count"],
+        "deduplication_input_record_count": correction_linkage["deduplication_input_record_count"],
+        "terminal_excluded_from_deduplication_count": len(correction_linkage["terminal_records_excluded_from_deduplication"]),
+    }
+    deduplication_input_records = list(read_jsonl(paths.deduplication_input_candidates))
+    if deduplication_input_records:
         dedupe_args = argparse.Namespace(
-            input=[str(paths.final_candidates)],
+            input=[str(paths.deduplication_input_candidates)],
             output=str(paths.deduplicated_candidates),
             report=str(paths.root / "deduplication_report.json"),
             evaluation=arguments.evaluation,
@@ -437,16 +546,23 @@ def _run_sidecars(
             paths.root / "deduplication_report.json",
             {
                 "stage": "deduplication",
-                "status": "not_run_no_terminal_candidates",
-                "non_claim": "No candidate was invented for a pilot with no materializable terminal model output.",
+                "status": "not_run_no_deduplication_eligible_terminal_candidates",
+                "non_claim": (
+                    "No candidate was invented. Terminal output was absent or every terminal candidate "
+                    "was excluded before deduplication by existing quality prerequisites or missing "
+                    "actual correction explanation evidence."
+                ),
             },
         )
-        sidecar["deduplication"] = {"status": "not_run_no_terminal_candidates"}
+        sidecar["deduplication"] = {"status": "not_run_no_deduplication_eligible_terminal_candidates"}
 
+    # Preserve a ledger row for every actual Builder/Fixer candidate stage so multi-round
+    # lineage remains inspectable. Only the correction-link argument is filtered: an empty
+    # Fixer explanation must not be attached as if it supplied Factory-valid evidence.
     candidate_inputs = [str(paths.raw_candidates), str(paths.corrected_candidates)]
     ledger_args = argparse.Namespace(
         input=candidate_inputs,
-        corrections=[str(paths.corrected_candidates)],
+        corrections=[str(paths.linkable_corrections)],
         output=str(paths.ledger),
         report=str(paths.root / "training_factory_ledger_report.json"),
         taxonomy=arguments.taxonomy,
@@ -457,12 +573,13 @@ def _run_sidecars(
     sidecar["ledger"] = {"status": "complete", "report": str(ledger_args.report)}
 
     # Failure recording accepts a later same-ID dedupe stage and deliberately merges its richer
-    # duplicate/split-isolation evidence with the original answer, while the ledger keeps its
-    # one-record-per-ID contract on raw/corrected lineage only.
-    failure_inputs = [*candidate_inputs, str(paths.deduplicated_candidates)]
+    # duplicate/split-isolation evidence with the original answer. Keep corrected attempts in
+    # failure inputs as actual observed evidence, even when their
+    # missing explanation makes them ineligible for a parent-correction link.
+    failure_inputs = [str(paths.raw_candidates), str(paths.corrected_candidates), str(paths.deduplicated_candidates)]
     failures_args = argparse.Namespace(
         input=failure_inputs,
-        corrections=[str(paths.corrected_candidates)],
+        corrections=[str(paths.linkable_corrections)],
         output=str(paths.failures),
         report=str(paths.root / "failure_recording_report.json"),
         taxonomy=arguments.taxonomy,
@@ -563,6 +680,12 @@ def _write_final_report(
     ineligible: dict[str, list[str]] = {}
     for record in terminal:
         record_id = str(record.get("record_id"))
+        metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+        is_correction = metadata.get("stage") == "corrected" or isinstance(metadata.get("parent_record_id"), str)
+        correction_evidence = correction_explanation_evidence(record) if is_correction else {"status": "linkable"}
+        if correction_evidence.get("status") != "linkable":
+            ineligible[record_id] = ["correction_explanation_missing_actual_evidence"]
+            continue
         pre_dedupe_ok, pre_dedupe_reasons = deduplicate_examples.pre_dedupe_eligibility(record)
         if not pre_dedupe_ok:
             ineligible[record_id] = pre_dedupe_reasons
@@ -576,6 +699,7 @@ def _write_final_report(
             ineligible[record_id] = reasons.get(record_id, ["canonical_final_quality_gate_rejected"])
     write_jsonl_atomic(paths.training_eligible_candidates, eligible)
     failures = list(read_jsonl(paths.failures)) if paths.failures.exists() else []
+    correction_linkage_report = read_json(paths.correction_linkage_report) if paths.correction_linkage_report.exists() else {}
     ledger_report = read_json(paths.root / "training_factory_ledger_report.json") if (paths.root / "training_factory_ledger_report.json").exists() else {}
     failure_report = read_json(paths.root / "failure_recording_report.json") if (paths.root / "failure_recording_report.json").exists() else {}
     analysis = read_json(paths.failure_analysis) if paths.failure_analysis.exists() else {}
@@ -611,6 +735,7 @@ def _write_final_report(
             "max_tasks_this_invocation": arguments.max_tasks,
             "retry_failed_requested": bool(arguments.retry_failed),
             "dry_run": bool(arguments.dry_run),
+            "repair_sidecars_requested": bool(arguments.repair_sidecars),
         },
         "model": _model_provenance(state),
         "task_catalog": deepcopy(state.get("task_set", {})),
@@ -654,6 +779,18 @@ def _write_final_report(
                 "count": sum(1 for _ in read_jsonl(paths.final_candidates)) if paths.final_candidates.exists() else 0,
                 "meaning": "Terminal Builder/Fixer candidate with actual trace review/test evidence; a skipped/error reviewer remains visibly ineligible.",
             },
+            "correction_linkage_evidence": {
+                "path": str(paths.correction_linkage_report),
+                "linkable_corrections_path": str(paths.linkable_corrections),
+                "deduplication_input_path": str(paths.deduplication_input_candidates),
+                "linkable_record_count": correction_linkage_report.get("linkable_record_count", 0),
+                "unlinked_record_count": correction_linkage_report.get("unlinked_record_count", 0),
+                "unlinked_corrections": deepcopy(correction_linkage_report.get("unlinked_corrections", [])),
+                "terminal_records_excluded_from_deduplication": deepcopy(
+                    correction_linkage_report.get("terminal_records_excluded_from_deduplication", [])
+                ),
+                "meaning": "Corrections without their own non-empty Fixer explanation are preserved as actual output but stay visibly unlinked and ineligible; no explanation is inferred.",
+            },
             "verified_output": {
                 "path": str(paths.deduplicated_candidates),
                 "count": len(deduplicated),
@@ -683,6 +820,7 @@ def _write_final_report(
             "recommendation_basis": "existing failure analysis over actual stored pilot evidence only, using its configured threshold",
         },
         "sidecars": sidecars or {"status": "not_run"},
+        "sidecar_repair_history": deepcopy(state.get("sidecar_repair_history", [])),
         "materialization_errors": materialization_errors,
         "promotion": deepcopy(state.get("promotion", {})),
         "non_claims": [
@@ -707,6 +845,188 @@ def _set_final_state(state: dict[str, Any], *, dry_run: bool = False) -> None:
         state["status"] = "completed_with_generation_failures"
     else:
         state["status"] = "completed"
+
+
+def _repair_snapshot(paths: PilotPaths, state: dict[str, Any]) -> dict[str, Any]:
+    """Copy mutable/derived artifacts before a no-model sidecar repair changes any of them."""
+
+    base = paths.root / "repair_snapshots"
+    stamp = utc_now().replace(":", "").replace("-", "").replace(".", "").replace("+", "_")
+    snapshot = base / stamp
+    suffix = 1
+    while snapshot.exists():
+        snapshot = base / f"{stamp}-{suffix}"
+        suffix += 1
+    assert_safe_factory_output_path(snapshot)
+    snapshot.mkdir(parents=True, exist_ok=False)
+    artifacts = (
+        paths.state,
+        paths.manifest,
+        paths.report,
+        paths.raw_candidates,
+        paths.corrected_candidates,
+        paths.linkable_corrections,
+        paths.correction_linkage_report,
+        paths.deduplication_input_candidates,
+        paths.final_candidates,
+        paths.deduplicated_candidates,
+        paths.training_eligible_candidates,
+        paths.ledger,
+        paths.failures,
+        paths.failure_analysis,
+        paths.root / "deduplication_report.json",
+        paths.root / "training_factory_ledger_report.json",
+        paths.root / "failure_recording_report.json",
+    )
+    copied: list[dict[str, str]] = []
+    for artifact in artifacts:
+        if not artifact.is_file():
+            continue
+        destination = snapshot / artifact.name
+        shutil.copy2(artifact, destination)
+        copied.append({"path": str(artifact), "sha256": sha256_file(artifact), "snapshot_copy": str(destination)})
+    trace_hashes = [
+        {"path": str(path), "sha256": sha256_file(path)}
+        for path in sorted(paths.trace_directory.glob("*.trace.json"))
+        if path.is_file()
+    ]
+    manifest = {
+        "kind": "dukeotr_real_model_pilot_sidecar_repair_snapshot",
+        "created_at": utc_now(),
+        "run_id": state.get("run_id"),
+        "purpose": "Preserve pre-repair derived artifacts; immutable B/R/F traces are referenced by hash and are not modified.",
+        "copied_artifacts": copied,
+        "immutable_trace_hashes": trace_hashes,
+    }
+    manifest_path = snapshot / "snapshot_manifest.json"
+    write_json_atomic(manifest_path, manifest)
+    return {
+        "snapshot_directory": str(snapshot),
+        "snapshot_manifest": str(manifest_path),
+        "copied_artifacts": copied,
+        "immutable_trace_hashes": trace_hashes,
+    }
+
+
+def _persisted_materialized_inputs(paths: PilotPaths) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    """Load repair inputs without rebuilding or rewriting model-derived candidate artifacts."""
+
+    required = (paths.raw_candidates, paths.corrected_candidates, paths.final_candidates)
+    missing = [str(path) for path in required if not path.is_file()]
+    if missing:
+        raise RealModelPilotError(
+            "--repair-sidecars refuses to reconstruct or overwrite missing model-derived candidate artifacts. "
+            "Required persisted files are missing: "
+            + ", ".join(missing)
+        )
+    hashes = {str(path): sha256_file(path) for path in required}
+    return list(read_jsonl(paths.final_candidates)), hashes
+
+
+def _repair_sidecars(
+    *,
+    arguments: argparse.Namespace,
+    config: dict[str, Any],
+    paths: PilotPaths,
+    state: dict[str, Any],
+    repair_pipeline_version: dict[str, Any],
+) -> int:
+    """Run only deterministic/sidecar work against an older, persisted pilot run.
+
+    This intentionally is *not* a model-generation compatibility override. It never instantiates
+    an Ollama client, never invokes B/R/F, never retries a task, and never rewrites the raw,
+    corrected, or final candidate artifacts. Normal model-generation resume keeps the existing
+    exact pipeline fingerprint guard.
+    """
+
+    final_records, source_hashes = _persisted_materialized_inputs(paths)
+    snapshot = _repair_snapshot(paths, state)
+    prior_report = read_json(paths.report) if paths.report.is_file() else {}
+    prior_errors = prior_report.get("materialization_errors", []) if isinstance(prior_report, dict) else []
+    repair_event: dict[str, Any] = {
+        "kind": "sidecar_repair_no_model",
+        "started_at": utc_now(),
+        "status": "running",
+        "prior_state": state.get("status"),
+        "stored_pipeline_version": deepcopy(state.get("pipeline_version", {})),
+        "repair_coordinator_pipeline_version": deepcopy(repair_pipeline_version),
+        "pipeline_fingerprint_mismatch_allowed_only_for_no_model_repair": state.get("pipeline_version") != repair_pipeline_version,
+        "source_candidate_hashes_before": source_hashes,
+        "prior_materialization_errors": deepcopy(prior_errors) if isinstance(prior_errors, list) else [],
+        **snapshot,
+        "non_claim": (
+            "This operation reruns no inference and infers no correction explanation. It preserves "
+            "the original trace/model provenance and only regenerates derived sidecar evidence."
+        ),
+    }
+    history = state.setdefault("sidecar_repair_history", [])
+    if not isinstance(history, list):
+        raise RealModelPilotError("Existing pilot state has malformed sidecar_repair_history")
+    history.append(repair_event)
+    write_pilot_state(paths.state, state)
+
+    try:
+        sidecars = _run_sidecars(arguments=arguments, paths=paths, final_records=final_records)
+        source_hashes_after = {path: sha256_file(path) for path in source_hashes}
+        if source_hashes_after != source_hashes:
+            raise PilotExecutionError(
+                "Sidecar repair detected a change to a source candidate artifact; preserved snapshot is available and repair is refused."
+            )
+        trace_hashes_after = [
+            {"path": str(path), "sha256": sha256_file(path)}
+            for path in sorted(paths.trace_directory.glob("*.trace.json"))
+            if path.is_file()
+        ]
+        if trace_hashes_after != snapshot["immutable_trace_hashes"]:
+            raise PilotExecutionError(
+                "Sidecar repair detected a change to an immutable B/R/F trace; preserved snapshot is available and repair is refused."
+            )
+        _set_final_state(state)
+        repair_event.update(
+            {
+                "status": "complete",
+                "completed_at": utc_now(),
+                "source_candidate_hashes_after": source_hashes_after,
+                "immutable_trace_hashes_after": trace_hashes_after,
+                "sidecars": deepcopy(sidecars),
+            }
+        )
+        write_pilot_state(paths.state, state)
+        _write_final_report(
+            arguments=arguments,
+            config=config,
+            paths=paths,
+            state=state,
+            sidecars=sidecars,
+            materialization_errors=[],
+        )
+        print(
+            f"Sidecar repair completed without Ollama/B/R/F calls. Pilot state: {state['status']}; "
+            f"report: {paths.report}; snapshot: {snapshot['snapshot_directory']}"
+        )
+        # This command's success criterion is sidecar repair, not a claim that prior model
+        # attempts were successful. The preserved run state/report still expose any pending or
+        # generation_failed tasks, while exit 0 lets an operator distinguish repair success from
+        # another sidecar crash.
+        return 0
+    except (OSError, ValueError, TrainingFactoryError, PilotExecutionError, RealModelPilotError) as exc:
+        state["status"] = "sidecar_error"
+        repair_event.update({"status": "error", "completed_at": utc_now(), "error": str(exc)})
+        write_pilot_state(paths.state, state)
+        _write_final_report(
+            arguments=arguments,
+            config=config,
+            paths=paths,
+            state=state,
+            sidecars={"status": "error", "error": str(exc), "operation": "sidecar_repair_no_model"},
+            materialization_errors=[f"Training Factory sidecar repair error: {exc}"],
+        )
+        print(
+            f"Sidecar repair stopped safely without an Ollama/B/R/F call: {exc}\n"
+            f"Report: {paths.report}; pre-repair snapshot: {snapshot['snapshot_directory']}",
+            file=sys.stderr,
+        )
+        return 2
 
 
 def _brf_arguments(arguments: argparse.Namespace, *, task_id: str, trace_path: Path) -> argparse.Namespace:
@@ -737,6 +1057,8 @@ def run(arguments: argparse.Namespace) -> int:
     _require_positive_timeout(arguments.timeout_seconds)
     if arguments.max_tasks is not None and (not isinstance(arguments.max_tasks, int) or arguments.max_tasks < 1):
         raise RealModelPilotError("--max-tasks must be a positive integer when supplied")
+    if arguments.repair_sidecars and (arguments.dry_run or arguments.retry_failed or arguments.max_tasks is not None):
+        raise RealModelPilotError("--repair-sidecars cannot be combined with --dry-run, --retry-failed, or --max-tasks; it never runs inference")
     if arguments.model != PILOT_MODEL:
         raise RealModelPilotError(
             f"Real Model Pilot v1 is deliberately pinned to {PILOT_MODEL!r}; use a separately versioned future pilot for another provider/model."
@@ -758,6 +1080,8 @@ def run(arguments: argparse.Namespace) -> int:
     paths = PilotPaths.from_root(arguments.output_root, arguments.run_id)
     _assert_safe_paths(paths)
     _assert_pilot_output_boundary(paths)
+    if arguments.repair_sidecars and not paths.state.exists():
+        raise RealModelPilotError("--repair-sidecars requires an existing pilot_state.json; it cannot create or infer a model run")
     paths.create_directories()
     tasks_by_id = {task["id"]: task for task in tasks}
 
@@ -769,8 +1093,18 @@ def run(arguments: argparse.Namespace) -> int:
             task_path=arguments.tasks,
             tasks=tasks,
             model=arguments.model,
+            evaluation_isolation=isolation,
             pipeline_version=pipeline_version,
+            allow_pipeline_mismatch_for_sidecar_repair=arguments.repair_sidecars,
         )
+        if arguments.repair_sidecars:
+            return _repair_sidecars(
+                arguments=arguments,
+                config=config,
+                paths=paths,
+                state=state,
+                repair_pipeline_version=pipeline_version,
+            )
         if arguments.dry_run and any(
             isinstance(item, dict) and int(item.get("attempts", 0) or 0) > 0 for item in state.get("tasks", [])
         ):

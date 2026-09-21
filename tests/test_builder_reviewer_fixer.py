@@ -154,6 +154,32 @@ class BuilderReviewerFixerTests(unittest.TestCase):
 
     @patch("scripts.run_builder_reviewer_fixer.OllamaClient.assert_model_present")
     @patch("scripts.run_builder_reviewer_fixer.OllamaClient.generate")
+    def test_separate_ollama_thinking_is_audited_without_entering_candidate_content(self, generate_mock, preflight_mock) -> None:
+        generate_mock.return_value = OllamaResponse(
+            content=builder_response(),
+            raw={"thinking": "private transport reasoning"},
+            elapsed_seconds=0.1,
+            thinking="private transport reasoning",
+            think_requested=False,
+        )
+        with tempfile.TemporaryDirectory() as directory, patch(
+            "scripts.run_builder_reviewer_fixer.classify_task", return_value=simple_route()
+        ):
+            output = Path(directory) / "trace.json"
+            code = main(["--seed-id", "dukeotr-phase1-001", "--output", str(output)])
+            trace = read_json(output)
+        self.assertEqual(code, 0)
+        audit = trace["rounds"][0]["builder"]["thinking_api"]
+        self.assertFalse(audit["requested"])
+        self.assertTrue(audit["field_present"])
+        self.assertEqual(audit["characters"], len("private transport reasoning"))
+        self.assertTrue(audit["excluded_from_response_content"])
+        self.assertNotIn("private transport reasoning", trace["rounds"][0]["builder"]["assistant_response"])
+        self.assertNotIn("private transport reasoning", json.dumps(trace))
+        preflight_mock.assert_called_once_with("qwen3:4b")
+
+    @patch("scripts.run_builder_reviewer_fixer.OllamaClient.assert_model_present")
+    @patch("scripts.run_builder_reviewer_fixer.OllamaClient.generate")
     def test_simple_fast_path_skips_reviewer_and_fixer_after_tester_pass(self, generate_mock, preflight_mock) -> None:
         generate_mock.return_value = OllamaResponse(content=builder_response(), raw={}, elapsed_seconds=0.1)
         with tempfile.TemporaryDirectory() as directory, patch(

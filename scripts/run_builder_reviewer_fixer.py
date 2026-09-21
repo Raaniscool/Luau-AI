@@ -285,11 +285,24 @@ def _failure_reasons(static: dict[str, Any], review: dict[str, Any] | None) -> l
 
 
 def _response_audit(response: Any) -> dict[str, Any]:
-    return {
+    audit = {
         "elapsed_seconds": round(float(response.elapsed_seconds), 3),
         "response_sha256": sha256_text(response.content),
         "response_characters": len(response.content),
     }
+    think_requested = getattr(response, "think_requested", None)
+    thinking = getattr(response, "thinking", None)
+    if think_requested is not None or thinking is not None:
+        # Preserve only bounded metadata about a separate API thinking field. It is never
+        # copied into assistant_response, reviewer content, failure data, or training input.
+        audit["thinking_api"] = {
+            "requested": think_requested,
+            "field_present": isinstance(thinking, str),
+            "characters": len(thinking) if isinstance(thinking, str) else 0,
+            "sha256": sha256_text(thinking) if isinstance(thinking, str) and thinking else None,
+            "excluded_from_response_content": True,
+        }
+    return audit
 
 
 def _error_audit(response: Any | None, error: Exception) -> dict[str, Any]:

@@ -57,10 +57,12 @@ non-promoting evidence under ignored `reports/real_model_pilots/<run-id>/`.
 
 It preserves raw/corrected/terminal/deduplicated/quality-eligible states separately, invokes
 only existing audit-sidecar tools, and never calls dataset construction or writes final training
-data. A skipped simple-route reviewer stays ineligible. Arena has not run the Windows-local
-model and no pilot result is claimed in this repository. Start with the no-model audit and read
-the exact Windows/resume/inspection instructions in
-[docs/REAL_MODEL_PILOT.md](docs/REAL_MODEL_PILOT.md).
+data. A skipped simple-route reviewer stays ineligible, and a Fixer output without its own
+actual change explanation is preserved as unlinked/ineligible evidence rather than being
+invented or promoted. Arena has not run the Windows-local model and no pilot result is claimed
+in this repository. Start with the no-model audit and read the exact Windows/resume/inspection
+instructions—including the no-model, snapshot-first `--repair-sidecars` recovery path for a
+persisted sidecar error—in [docs/REAL_MODEL_PILOT.md](docs/REAL_MODEL_PILOT.md).
 
 ## Native local desktop application
 

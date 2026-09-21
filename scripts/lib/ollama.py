@@ -31,6 +31,10 @@ class OllamaResponse:
     content: str
     raw: dict[str, Any]
     elapsed_seconds: float
+    # Newer Ollama releases can return reasoning in a separate API field. It is retained
+    # separately for local audit and is never merged into user-facing content.
+    thinking: str | None = None
+    think_requested: bool | None = None
 
 
 class OllamaClient:
@@ -115,7 +119,14 @@ class OllamaClient:
         content = result.get("response")
         if not isinstance(content, str):
             raise OllamaError("Ollama /api/generate returned no string response")
-        return OllamaResponse(content=content, raw=result, elapsed_seconds=elapsed)
+        thinking = result.get("thinking")
+        return OllamaResponse(
+            content=content,
+            raw=result,
+            elapsed_seconds=elapsed,
+            thinking=thinking if isinstance(thinking, str) else None,
+            think_requested=think,
+        )
 
     def chat(
         self,
@@ -140,7 +151,14 @@ class OllamaClient:
         content = message.get("content") if isinstance(message, dict) else None
         if not isinstance(content, str):
             raise OllamaError("Ollama /api/chat returned no string message.content")
-        return OllamaResponse(content=content, raw=result, elapsed_seconds=elapsed)
+        thinking = message.get("thinking") if isinstance(message, dict) else None
+        return OllamaResponse(
+            content=content,
+            raw=result,
+            elapsed_seconds=elapsed,
+            thinking=thinking if isinstance(thinking, str) else None,
+            think_requested=think,
+        )
 
     def _request_with_think_fallback(
         self, endpoint: str, payload: dict[str, Any], think: bool | None
@@ -203,6 +221,7 @@ class OllamaClient:
         """
         request = self._build_request(endpoint, payload)
         chunks: list[str] = []
+        thinking_chunks: list[str] = []
         final: dict[str, Any] | None = None
         try:
             with urlopen(request, timeout=self.timeout_seconds) as response:  # noqa: S310 - local configured endpoint
@@ -221,6 +240,11 @@ class OllamaClient:
                     piece = item.get("response")
                     if isinstance(piece, str):
                         chunks.append(piece)
+                    # Ollama's thinking-capable models may stream this separately. Never
+                    # concatenate it into ``response``: callers must parse only final content.
+                    thinking_piece = item.get("thinking")
+                    if isinstance(thinking_piece, str):
+                        thinking_chunks.append(thinking_piece)
                     if item.get("done") is True:
                         final = item
         except HTTPError as exc:
@@ -235,4 +259,6 @@ class OllamaClient:
             raise OllamaError(f"Ollama stream for {endpoint} ended before its final done record")
         result = dict(final)
         result["response"] = "".join(chunks)
+        if thinking_chunks:
+            result["thinking"] = "".join(thinking_chunks)
         return result
