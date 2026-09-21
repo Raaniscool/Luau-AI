@@ -70,6 +70,7 @@ output/
 # Native desktop runtime data and unverified local packaging output. The application defaults
 # to a user profile directory, but these guard against accidental project-local data/artifacts.
 desktop_app_data/
+.venv-windows-build/
 build/
 dist/
 DukeOTR.spec

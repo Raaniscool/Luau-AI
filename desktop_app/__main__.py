@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import sys
+from desktop_app.resources import configure_windows_app_id
 
 
 def main() -> None:
     """Load tkinter lazily so a missing desktop runtime gets an actionable message."""
 
+    configure_windows_app_id()
     try:
         from desktop_app.ui import run_desktop_app
     except ModuleNotFoundError as exc:

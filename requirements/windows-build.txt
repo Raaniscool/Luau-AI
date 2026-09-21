@@ -1,0 +1,9 @@
+# Fully pinned build-only dependency set for the native Windows DukeOTR release.
+# The desktop application's runtime code itself uses Python's standard library; end users do not
+# need Python or these packages after receiving the produced portable DukeOTR folder.
+altgraph==0.17.5
+packaging==26.3
+pyinstaller-hooks-contrib==2026.7
+pyinstaller==6.22.3
+pywin32-ctypes==0.2.3 ; sys_platform == "win32"
+setuptools==84.0.0

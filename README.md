@@ -73,18 +73,31 @@ discovery and streamed chat, stores settings/conversations locally, and has Chat
 Debug, Builder, and Security modes. It does not launch or scrape a terminal, pull models, train
 Qwen, call a cloud service, or pretend it is connected to Roblox Studio.
 
-On the Windows machine, perform the required existing-model preflight first, then start it from
-the repository root:
+For source/development use on the Windows machine, perform the required existing-model preflight
+first, then start it from the repository root:
 
 ```powershell
 ollama list
-python -m desktop_app
+py -3 -m desktop_app
 ```
 
-See [docs/DESKTOP_APP.md](docs/DESKTOP_APP.md) for source installation, architecture, provider
-behavior, storage/privacy, Builder/Reviewer/Fixer transition boundary, future Studio boundary,
-tests, limitations, and an **unverified future** Windows-packaging procedure. No `.exe` is
-claimed or included by this repository change.
+For normal double-click desktop use, the existing tkinter application now has a reproducible
+64-bit Windows PyInstaller **portable-folder** release recipe. Build, deploy, and create a
+Desktop **DukeOTR** shortcut with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_windows_release.ps1 `
+  -Install `
+  -CreateDesktopShortcut
+```
+
+It produces `dist\DukeOTR\DukeOTR.exe`, deploys the complete portable folder to
+`%LOCALAPPDATA%\Programs\DukeOTR`, and creates a shortcut that launches the executable directly.
+It never bundles or changes Ollama/Qwen3-4B. The generated `.exe` is an ignored local build
+artifact—not a binary committed to Git—and must be runtime-verified on Windows before any claim
+that it was successfully launched. See [docs/DESKTOP_APP.md](docs/DESKTOP_APP.md) for exact
+prerequisites, shortcut behavior, package contents, verification, limitations, and the preserved
+source workflow.
 
 ## DukeOTR sequence
 

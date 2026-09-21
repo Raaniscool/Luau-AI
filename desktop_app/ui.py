@@ -16,6 +16,7 @@ from desktop_app.core.models import AppMode, AppSettings, ChatMessage, Conversat
 from desktop_app.core.modes import ModeSubmission
 from desktop_app.core.provider import GenerationCancelled, ModelProviderError
 from desktop_app.core.storage import LocalStorageError
+from desktop_app.resources import application_icon_path
 
 
 _CODE_FENCE = re.compile(r"```(?:[A-Za-z0-9_+.-]+)?\n?(.*?)```", re.DOTALL)
@@ -28,6 +29,7 @@ class DukeOTRDesktop(tk.Tk):
         super().__init__()
         self.core = core or DukeOTRApplicationCore()
         self.title("DukeOTR · Local AI Workspace")
+        self._apply_application_icon()
         self.geometry("1280x800")
         self.minsize(940, 620)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -60,6 +62,17 @@ class DukeOTRDesktop(tk.Tk):
         self._refresh_connection()
 
     # ---------- construction and theme ----------
+
+    def _apply_application_icon(self) -> None:
+        """Use the bundled Windows ICO without making source or frozen launches cwd-dependent."""
+
+        try:
+            icon = application_icon_path()
+            if icon.is_file():
+                self.iconbitmap(default=str(icon))
+        except (OSError, tk.TclError):
+            # A missing/unreadable cosmetic resource must never keep the local app from opening.
+            pass
 
     def _apply_theme(self, preference: str) -> None:
         # Tk has no cross-platform system-theme API. "system" intentionally uses the readable
