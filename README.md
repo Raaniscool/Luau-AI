@@ -26,7 +26,8 @@ in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), the explicit
 [DukeOTR identity/provenance policy](docs/MODEL_IDENTITY.md), the
 [Training Factory](training_factory/README.md), the
 [training-machine runbook](docs/TRAINING_MACHINE_RUNBOOK.md), and the native local
-[DukeOTR desktop application guide](docs/DESKTOP_APP.md).
+[DukeOTR desktop application guide](docs/DESKTOP_APP.md), and the Windows-local
+[Real Model Pilot guide](docs/REAL_MODEL_PILOT.md).
 
 ## Execution boundary
 
@@ -44,6 +45,22 @@ in [docs/DUKEOTR_ROADMAP.md](docs/DUKEOTR_ROADMAP.md), the explicit
 
 See [docs/TRAINING_MACHINE_RUNBOOK.md](docs/TRAINING_MACHINE_RUNBOOK.md) for the complete
 handoff, training, evaluation, and Ollama-packaging procedure.
+
+## Real Model Pilot (local baseline discovery only)
+
+`pilot_data/real_model_pilot_v1.jsonl` contains 12 separate, project-authored `pilot-...`
+briefs for a **small sequential Windows-local discovery run**, not ordinary training source
+briefs. The runner is pinned to the existing local **Qwen3-4B / `qwen3:4b`** tag, begins with
+non-mutating `ollama list` plus API-tag preflight, passes each actual response through the
+existing Builder → Tester/Reviewer → Fixer trace where applicable, and writes resumable
+non-promoting evidence under ignored `reports/real_model_pilots/<run-id>/`.
+
+It preserves raw/corrected/terminal/deduplicated/quality-eligible states separately, invokes
+only existing audit-sidecar tools, and never calls dataset construction or writes final training
+data. A skipped simple-route reviewer stays ineligible. Arena has not run the Windows-local
+model and no pilot result is claimed in this repository. Start with the no-model audit and read
+the exact Windows/resume/inspection instructions in
+[docs/REAL_MODEL_PILOT.md](docs/REAL_MODEL_PILOT.md).
 
 ## Native local desktop application
 
@@ -144,7 +161,8 @@ permanently held-out evaluation JSONL.
 ## Repository layout
 
 ```text
-raw_data/          Project-authored source briefs, including the DukeOTR Phase-1 catalog
+raw_data/          Project-authored ordinary source briefs, including the DukeOTR Phase-1 catalog
+pilot_data/        Separate fixed real-model discovery briefs; never automatic source/final training data
 legacy_data/       Archive location for compatible historic material; do not discard useful data
 generated_data/    Local candidate outputs (ignored; never automatically final)
 validated_data/    Local review/correction/dedupe artifacts (ignored)

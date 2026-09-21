@@ -82,6 +82,12 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--fixer-model", default=None)
     value.add_argument("--host", default=None)
     value.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=600,
+        help="Maximum wait for each local Ollama HTTP response/chunk; increase on slow hardware.",
+    )
+    value.add_argument(
         "--dry-run",
         action="store_true",
         help="Write an isolation-checked execution plan without querying Ollama or producing a candidate",
@@ -468,7 +474,9 @@ def _base_trace(
             "role_contract_sha256": _safe_file_hash(arguments.config),
             "role_contract_status": config.get("status"),
             "max_rounds": max_rounds,
+            "timeout_seconds": getattr(arguments, "timeout_seconds", 600),
             "role_models": role_models,
+            "role_options": {role: _role_options(config, role) for role in ("builder", "reviewer", "fixer")},
         },
         "routing": route.as_dict(),
         "code_book": {
@@ -495,6 +503,12 @@ def _write(trace: dict[str, Any], output: str) -> None:
 
 
 def run(arguments: argparse.Namespace) -> int:
+    # Keep programmatic callers made before the additive timeout flag compatible with the
+    # established default, while the CLI/parser always supplies an explicit value.
+    timeout_seconds = getattr(arguments, "timeout_seconds", 600)
+    if not isinstance(timeout_seconds, int) or timeout_seconds < 1:
+        raise ValueError("--timeout-seconds must be a positive integer")
+    arguments.timeout_seconds = timeout_seconds
     output = Path(arguments.output)
     if output.exists() and not arguments.overwrite:
         raise ValueError(f"Refusing to overwrite existing trace {output}; use a new path or --overwrite after review")
@@ -560,7 +574,7 @@ def run(arguments: argparse.Namespace) -> int:
     repair_rejections = orchestrator.get("repair_rejections", False)
     if not isinstance(review_static_failures, bool) or not isinstance(repair_rejections, bool):
         raise ValueError("orchestrator review_static_failures and repair_rejections must be booleans")
-    client = OllamaClient(arguments.host)
+    client = OllamaClient(arguments.host, timeout_seconds=arguments.timeout_seconds)
     # This invokes the exact local registration preflight (including `ollama list` for a local
     # host) and never downloads or changes a model. Delay a distinct Fixer model's preflight
     # until a repair is actually needed, so an early-pass response does not touch that role.

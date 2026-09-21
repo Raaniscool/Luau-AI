@@ -22,6 +22,12 @@ The repository has two tracked project-authored source-brief catalogs:
   optimization, API misuse, architecture, requirements, trade-offs, completion, subtle bugs,
   and runtime reasoning.
 
+A separate 12-task `pilot_data/real_model_pilot_v1.jsonl` catalog is deliberately **not** part
+of that 131-brief ordinary source portfolio. Its `pilot-...` IDs and `source.pilot_only` marker
+make it a bounded local baseline/discovery input only; see
+[REAL_MODEL_PILOT.md](REAL_MODEL_PILOT.md). It cannot be supplied to final dataset construction
+by the pilot runner, and its artifacts remain under an ignored reports-only run boundary.
+
 These counts describe **source briefs**, not a falsely claimed completed training corpus.
 Each brief can produce one or more diverse, reviewed candidates only after the documented
 quality gates.

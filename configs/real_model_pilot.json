@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "project_name": "DukeOTR",
+  "kind": "real_model_pilot_policy",
+  "status": "implemented_local_baseline_discovery_only_not_training",
+  "model": "qwen3:4b",
+  "model_identity": "Qwen3-4B local Ollama baseline/provider tag; not a trained or released DukeOTR model",
+  "dataset_version_target": "dukeotr_dataset_v1",
+  "execution": {
+    "parallelism": 1,
+    "default_timeout_seconds": 600,
+    "default_task_limit": 12,
+    "resume_policy": "pending_and_interrupted_by_default_generation_failures_only_with_explicit_retry_failed",
+    "preflight": "OllamaClient.assert_model_present runs local ollama list then /api/tags for qwen3:4b; it never pulls or changes a model"
+  },
+  "source_boundary": {
+    "pilot_catalog": "pilot_data/real_model_pilot_v1.jsonl",
+    "required_id_prefix": "pilot-",
+    "required_source_marker": "source.pilot_only=true",
+    "evaluation_policy": "A local normalized wording comparison rejects held-out collisions before model preflight. Held-out prompts, rubrics, answers, and scores are never passed to model roles or copied into pilot reports."
+  },
+  "artifact_boundary": {
+    "run_root": "reports/real_model_pilots/<run-id>",
+    "forbidden_actions": [
+      "do not invoke scripts.build_datasets",
+      "do not write final training_data artifacts",
+      "do not train, fine-tune, import, or rename an Ollama model",
+      "do not claim pilot outcomes before a user actually runs the local command"
+    ],
+    "candidate_states": [
+      "raw Builder output",
+      "corrected lineage output",
+      "terminal reviewed/tested output with actual skipped/error states retained",
+      "deduplicated and held-out-isolation-checked output",
+      "quality-gate-eligible report-only output"
+    ]
+  },
+  "limitations": [
+    "A small predefined pilot is evidence discovery, not a benchmark and not a model-improvement measurement.",
+    "A completed Builder/Reviewer/Fixer trace is non-promoting; a skipped Reviewer remains ineligible under the canonical final quality gate.",
+    "Deterministic/static checks, reviewer output, and correction verification are evidence, not a factual-correctness oracle.",
+    "Failure recommendations are derived only from actual stored pilot failure records using the existing Training Factory threshold policy.",
+    "The command requires the user machine's existing local Ollama service and exact qwen3:4b registration; Arena cannot run or verify that Windows-local model."
+  ]
+}

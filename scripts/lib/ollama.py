@@ -72,6 +72,10 @@ class OllamaClient:
                 f"Available: {available}. Do not download a replacement automatically; confirm the existing tag or choose --model."
             )
 
+    def is_local_host(self) -> bool:
+        """Whether this client targets a loopback/local binding eligible for CLI attestation."""
+        return self._is_local_host()
+
     def _is_local_host(self) -> bool:
         parsed = urlparse(self.host)
         return parsed.hostname in {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
